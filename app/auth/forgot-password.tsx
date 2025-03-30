@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomInput } from '../components/CustomInput';
 import { Button } from '../components/Button';
+import { emailPlaceholder } from '@/config';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -49,7 +50,7 @@ export default function ForgotPassword() {
       <View style={styles.form}>
         <CustomInput
           label="Email"
-          placeholder="Enter your email"
+          placeholder={emailPlaceholder}
           value={email}
           onChangeText={setEmail}
           isEmail

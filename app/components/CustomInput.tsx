@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { allowedEmailDomains } from '../../config';
 
 interface CustomInputProps {
   placeholder: string;
@@ -23,7 +24,7 @@ interface CustomInputProps {
   label?: string;
 }
 
-const EMAIL_DOMAINS = ['@gmail.com', '@outlook.com'];
+const EMAIL_DOMAINS = allowedEmailDomains;
 
 export function CustomInput({
   placeholder,
@@ -73,8 +74,8 @@ export function CustomInput({
             <TouchableOpacity
               style={styles.domainSelector}
               onPress={() => setShowDomainDropdown(!showDomainDropdown)}>
-              <Text style={{ color: colors.text }}>{emailDomain}</Text>
-              <Text style={{ color: colors.text }}>▼</Text>
+              <Text style={{ color: colors.text, fontSize: 18 }}>{emailDomain}</Text>
+              <Text style={{ color: colors.text, fontSize: 18 }}>▼</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -109,7 +110,7 @@ export function CustomInput({
               key={domain}
               style={styles.dropdownItem}
               onPress={() => handleEmailDomainSelect(domain)}>
-              <Text style={{ color: colors.text }}>{domain}</Text>
+              <Text style={{ color: colors.text, fontSize: 18 }}>{domain}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -120,7 +121,7 @@ export function CustomInput({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 4,
   },
   label: {
     fontSize: 14,
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 18,
     ...Platform.select({
       web: {
         outlineStyle: 'none',

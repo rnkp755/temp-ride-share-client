@@ -19,12 +19,19 @@ export default function Welcome() {
   const flatListRef = useRef<FlatList>(null);
   const { colors } = useTheme();
 
-  const renderItem = ({ item }: { item: typeof welcomeSlides[0] }) => (
+  const renderItem = ({ item }: { item: (typeof welcomeSlides)[0] }) => (
     <View style={styles.slide}>
       <Image source={{ uri: item.image }} style={styles.image} />
       <View style={[styles.textContainer]}>
-        <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
-        <Text style={[styles.description, { color: colors.textSecondary }]}>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {item.title}
+        </Text>
+        <Text
+          style={[
+            styles.description,
+            { color: colors.textSecondary },
+          ]}
+        >
           {item.description}
         </Text>
       </View>
@@ -42,36 +49,36 @@ export default function Welcome() {
     router.replace('/auth/login');
   };
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
-        ref={flatListRef}
-        data={welcomeSlides}
-        renderItem={renderItem}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      />
-      <View style={styles.pagination}>
-        {welcomeSlides.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.paginationDot,
-              {
-                backgroundColor:
-                  index === currentIndex ? colors.primary : colors.border,
-              },
-            ]}
-          />
-        ))}
+  return ( 
+    <View style={[styles.container, { backgroundColor: colors.background }]}> 
+      <FlatList 
+        ref={flatListRef} 
+        data={welcomeSlides} 
+        renderItem={renderItem} 
+        horizontal 
+        pagingEnabled 
+        showsHorizontalScrollIndicator={false} 
+        onScroll={handleScroll} 
+        scrollEventThrottle={16} 
+      /> 
+      <View style={styles.pagination}> 
+        {welcomeSlides.map((_, index) => ( 
+          <View 
+            key={index} 
+            style={[ 
+              styles.paginationDot, 
+              { 
+                backgroundColor: 
+                  index === currentIndex ? colors.primary : colors.border, 
+              }, 
+            ]} 
+          /> 
+        ))} 
       </View>
-      <View style={styles.buttonContainer}>
-        <Button title="Get Started" onPress={handleGetStarted} />
+      <View style={styles.buttonContainer}> 
+        <Button title="Get Started" onPress={handleGetStarted} /> 
       </View>
-    </View>
+    </View> 
   );
 }
 
@@ -82,17 +89,16 @@ const styles = StyleSheet.create({
   slide: {
     width,
     height: '100%',
+    justifyContent: 'space-between', 
   },
   image: {
     width: '100%',
-    height: '70%',
+    height: '80%', 
     resizeMode: 'cover',
   },
   textContainer: {
     flex: 1,
     padding: 24,
-    // marginBottom: 96,
-    alignContent: 'center',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -111,9 +117,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'absolute',
-    bottom: 120,
     width: '100%',
+    paddingBottom: 20, // Added padding instead of absolute positioning
   },
   paginationDot: {
     width: 8,
@@ -122,9 +127,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   buttonContainer: {
-    position: 'absolute',
-    bottom: 48,
-    left: 24,
-    right: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 48,
   },
 });

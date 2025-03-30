@@ -10,6 +10,7 @@ const lightTheme = {
   textSecondary: '#718096',
   border: '#E2E8F0',
   notification: '#FF4757',
+  success: '#38A169',
   ripple: 'rgba(0, 0, 0, 0.1)',
 };
 
@@ -21,6 +22,7 @@ const darkTheme = {
   textSecondary: '#A0AEC0',
   border: '#4A5568',
   notification: '#FF6B78',
+  success: '#68D391',
   ripple: 'rgba(255, 255, 255, 0.1)',
 };
 

@@ -1,5 +1,5 @@
 export const welcomeSlides = [
-    {
+  {
     id: '1',
     image: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=1470&auto=format&fit=crop',
     title: 'Welcome to RideShare',
@@ -17,4 +17,7 @@ export const welcomeSlides = [
     title: 'Safe & Reliable',
     description: 'All our drivers are verified and trained to ensure your safety.',
   },
-]
+];
+export const allowedEmailDomains = ['@cuchd.in', '@cumail.in']
+export const emailPlaceholder = 'Eg. 22bcs12345'
+export const genderOptions = ['Male', 'Female', 'Other']

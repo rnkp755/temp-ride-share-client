@@ -5,10 +5,11 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomInput } from '../components/CustomInput';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../../store/authStore';
+import { allowedEmailDomains, emailPlaceholder } from '@/config';
 
 export default function Login() {
   const [email, setEmail] = useState('');
-  const [emailDomain, setEmailDomain] = useState('@gmail.com');
+  const [emailDomain, setEmailDomain] = useState(allowedEmailDomains[0]);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +54,7 @@ export default function Login() {
       <View style={styles.form}>
         <CustomInput
           label="Email"
-          placeholder="Enter your email"
+          placeholder={emailPlaceholder}
           value={email}
           onChangeText={setEmail}
           isEmail
@@ -80,7 +81,7 @@ export default function Login() {
           title="Forgot Password"
           onPress={() => router.push('/auth/forgot-password')}
           variant="text"
-          style={styles.button}
+          style={[styles.button, { alignSelf: 'flex-end', marginTop: -24, marginBottom: -8 }]}
         />
 
         <Button
@@ -88,6 +89,7 @@ export default function Login() {
           onPress={handleLogin}
           loading={loading}
           style={styles.button}
+          disabled={!email || !password || loading}
         />
 
         <View style={styles.registerContainer}>
@@ -130,12 +132,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    marginTop: 8,
+    marginTop: -12,
   },
   registerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 0,
   },
 });

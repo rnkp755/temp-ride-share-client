@@ -5,15 +5,17 @@ import { useTheme } from '../../context/ThemeContext';
 import { CustomInput } from '../components/CustomInput';
 import { Button } from '../components/Button';
 import { useAuthStore } from '../../store/authStore';
+import { emailPlaceholder, allowedEmailDomains, genderOptions } from '@/config';
 
-const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+const GENDER_OPTIONS = genderOptions;
 
 export default function Register() {
   const [email, setEmail] = useState('');
-  const [emailDomain, setEmailDomain] = useState('@gmail.com');
+  const [emailDomain, setEmailDomain] = useState(allowedEmailDomains[0]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [gender, setGender] = useState('');
+  const [detectedName, setDetectedName] = useState('Test');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { colors } = useTheme();
@@ -24,25 +26,20 @@ export default function Register() {
       setError('All fields are required');
       return false;
     }
-
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return false;
     }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters long');
       return false;
     }
-
     return true;
   };
 
   const handleRegister = async () => {
     setError('');
-
     if (!validateForm()) return;
-
     setLoading(true);
 
     try {
@@ -73,14 +70,21 @@ export default function Register() {
       <View style={styles.form}>
         <CustomInput
           label="Email"
-          placeholder="Enter your email"
+          placeholder={emailPlaceholder}
           value={email}
           onChangeText={setEmail}
           isEmail
           emailDomain={emailDomain}
           onEmailDomainChange={setEmailDomain}
         />
-
+        {
+          detectedName && (
+            <Text style={[styles.name]}>
+              <Text style={{ color: colors.text }}>Welcome{' '}</Text>
+              <Text style={{ color: colors.success }}>{detectedName}</Text>
+            </Text>
+          )
+        }
         <CustomInput
           label="Password"
           placeholder="Enter your password"
@@ -169,6 +173,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
+    marginTop: -12,
   },
   genderButton: {
     flex: 1,
@@ -177,13 +182,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  name: {
+    fontSize: 14,
+    marginTop: -12,
+    marginLeft: 2
+  },
   button: {
-    marginTop: 8,
+    marginTop: 16,
   },
   loginContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 0,
   },
 });
