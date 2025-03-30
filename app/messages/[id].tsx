@@ -16,7 +16,7 @@ export default function ChatScreen() {
   const { user } = useUserStore();
   
   const [message, setMessage] = useState('');
-  const flatListRef = useRef(null);
+  const flatListRef = useRef<FlatList<any>>(null);
   
   const conversation = conversations.find(c => c.userId.toString() === id);
   
@@ -187,6 +187,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   headerUser: {
     flexDirection: 'row',

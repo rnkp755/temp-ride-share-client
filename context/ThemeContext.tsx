@@ -32,7 +32,7 @@ const ThemeContext = createContext({
 });
 
 // Theme provider component
-export const ThemeProvider = ({ children }) => {
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const colorScheme = useColorScheme();
   const [theme, setTheme] = useState(colorScheme || 'light');
   

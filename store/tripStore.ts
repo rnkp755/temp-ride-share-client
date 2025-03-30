@@ -48,6 +48,7 @@ export const useTripStore = create<TripStore>((set) => ({
       date: '2025-06-15',
       time: '09:00',
       transportation: 'Car',
+      notes: "I have space for 2 passengers. Let me know if you need a ride!",
       createdAt: '2025-06-01T12:00:00Z',
     },
     {

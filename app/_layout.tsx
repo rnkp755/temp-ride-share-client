@@ -3,23 +3,18 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
-declare global {
-  interface Window {
-    frameworkReady?: () => void;
-  }
-}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  
-  useEffect(() => {
-    window.frameworkReady?.();
-  }, []);
+  useFrameworkReady();
 
   return (
     <ThemeProvider>
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="auth" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>

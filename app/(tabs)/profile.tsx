@@ -1,15 +1,25 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { View, Text, StyleSheet, Image, Pressable, Switch, ScrollView } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useUserStore } from '@/store/userStore';
 import { useTripStore } from '@/store/tripStore';
 import { User, Moon, Sun, LogOut, Settings, MapPin } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { useAuthStore } from '../../store/authStore';
+
 
 export default function ProfileScreen() {
   const { theme, toggleTheme, colors } = useTheme();
   const { user } = useUserStore();
   const { trips } = useTripStore();
+
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/auth/login');
+  };
   
   const userTrips = trips.filter(trip => trip.user.id === user.id);
   
@@ -105,6 +115,7 @@ export default function ProfileScreen() {
         <Pressable 
           style={styles.settingItem}
           android_ripple={{ color: colors.ripple }}
+          onPress={handleLogout}
         >
           <View style={styles.settingLeft}>
             <LogOut size={20} color="#FF3B30" />
