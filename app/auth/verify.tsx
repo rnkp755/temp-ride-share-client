@@ -4,25 +4,47 @@ import { router } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { OTPInput } from '../components/OTPInput';
 import { Button } from '../components/Button';
-import { useAuthStore } from '../../store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import API from '@/axios';
 
 export default function Verify() {
-  const [code, setCode] = useState(['', '', '', '']);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [resendDisabled, setResendDisabled] = useState(false);
-  const [countdown, setCountdown] = useState(30);
+  const [code, setCode] = useState<string[]>(['', '', '', '']);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [resendDisabled, setResendDisabled] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(30);
   const { colors } = useTheme();
-  const user = useAuthStore((state) => state.user);
-  const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
-  const setIsVerified = useAuthStore((state) => state.setIsVerified);
+  const [email, setEmail] = useState<string | null>(null);
 
+  // Fetch stored user details from AsyncStorage
+  useEffect(() => {
+    const getUserData = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          setEmail(user.email);
+        }
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+      }
+    };
+    getUserData();
+  }, []);
+
+  // Auto-send OTP when email is available
+  useEffect(() => {
+    if (email) {
+      handleResend();
+    }
+  }, [email]);
+
+  // Countdown timer for resend button
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (resendDisabled && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
+      timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     } else if (countdown === 0) {
       setResendDisabled(false);
       setCountdown(30);
@@ -35,32 +57,63 @@ export default function Verify() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (!email) {
+        setError('Session expired. Please register again.');
+        return;
+      }
 
       const enteredCode = code.join('');
-      
-      // Mock validation (correct code is '1234')
-      if (enteredCode === '1234') {
-        setIsVerified(true);
-        setIsAuthenticated(true);
-        router.replace('/(tabs)');
-      } else {
-        setError('Invalid verification code');
+      const response = await API.post('/otp/verify/register', {
+        email,
+        otp: enteredCode,
+      });
+
+      if (response.status !== 200) {
+        throw new Error('Invalid OTP');
       }
+
+      const cookies = response.headers['set-cookie'];
+      if (cookies?.length) {
+        let accessToken = '';
+        let refreshToken = '';
+
+        cookies.forEach((cookie) => {
+          if (cookie.startsWith('accessToken=')) {
+            accessToken = cookie.split(';')[0].split('=')[1];
+          }
+          if (cookie.startsWith('refreshToken=')) {
+            refreshToken = cookie.split(';')[0].split('=')[1];
+          }
+        });
+
+        if (accessToken) {
+          await SecureStore.setItemAsync('accessToken', accessToken);
+        }
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
+      }
+
+      router.replace('/(tabs)');
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      console.error('Verification error:', err);
+      setError('Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
+    if (!email) return;
     setResendDisabled(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setCode(['', '', '', '']);
-    setError('');
+    try {
+      await API.post('/otp/send/register', { email });
+      setCode(['', '', '', '']);
+      setError('');
+    } catch (err) {
+      setError('Failed to resend OTP. Try again.');
+      setResendDisabled(false);
+    }
   };
 
   return (
@@ -70,7 +123,7 @@ export default function Verify() {
           Verify Your Email
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          We sent a code to {user?.email}
+          We sent a code to {email}
         </Text>
       </View>
 
@@ -92,11 +145,7 @@ export default function Verify() {
         />
 
         <Button
-          title={
-            resendDisabled
-              ? `Resend code in ${countdown}s`
-              : 'Resend verification code'
-          }
+          title={resendDisabled ? `Resend code in ${countdown}s` : 'Resend verification code'}
           onPress={handleResend}
           variant="secondary"
           disabled={resendDisabled}

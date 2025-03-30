@@ -4,10 +4,9 @@ import { router } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomInput } from '../components/CustomInput';
 import { Button } from '../components/Button';
-import { useAuthStore } from '../../store/authStore';
 import { emailPlaceholder, allowedEmailDomains, genderOptions } from '@/config';
-
-const GENDER_OPTIONS = genderOptions;
+import API from '@/axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -15,11 +14,12 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [gender, setGender] = useState('');
-  const [detectedName, setDetectedName] = useState('Test');
+  const [detectedName, setDetectedName] = useState('');
+  const [isLoadingName, setIsLoadingName] = useState(false);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { colors } = useTheme();
-  const setUser = useAuthStore((state) => state.setUser);
 
   const validateForm = () => {
     if (!email || !password || !confirmPassword || !gender) {
@@ -30,11 +30,48 @@ export default function Register() {
       setError('Passwords do not match');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+    if (password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password) || !/[!@#$%^&*]/.test(password)) {
+      setError('Password must be at least 8 characters long and contain letters, numbers & special characters');
       return false;
     }
     return true;
+  };
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+    }
+    const timeout = setTimeout(() => {
+      if (text) {
+        fetchUserName(text);
+      } else {
+        setDetectedName('');
+      }
+    }, 1500);
+    
+    setTypingTimeout(timeout);
+  };
+
+  const fetchUserName = async (email: string) => {
+    setIsLoadingName(true);
+    try {
+      const response = await API.post(`/outlook`, {
+        email: email + emailDomain
+      });
+      
+      if (response.status !== 200) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const name = response.data?.data?.name;
+      setDetectedName(name);
+    } catch (error) {
+      console.error('Error fetching user name:', error);
+      setDetectedName('');
+    } finally {
+      setIsLoadingName(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -43,16 +80,32 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await API.post(`/user/register`, {
+        email: email + emailDomain,
+        gender,
+        password,
+      });
 
-      const fullEmail = email + emailDomain;
+      if (response.status !== 201) {
+        throw new Error('Registration failed');
+      }
+
+      const user = response.data?.data;
       
-      // Store user data and navigate to verification
-      setUser({ email: fullEmail, gender });
+      // Store user details locally
+      await AsyncStorage.setItem('user', JSON.stringify({
+        name: user.name,
+        email: user.email,
+        gender: user.gender,
+        avatar: user.avatar,
+        role: user.role,
+        settings: user.settings
+      }));
+
       router.push('/auth/verify');
     } catch (err) {
       setError('An error occurred. Please try again.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -72,19 +125,21 @@ export default function Register() {
           label="Email"
           placeholder={emailPlaceholder}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           isEmail
           emailDomain={emailDomain}
           onEmailDomainChange={setEmailDomain}
         />
-        {
-          detectedName && (
-            <Text style={[styles.name]}>
-              <Text style={{ color: colors.text }}>Welcome{' '}</Text>
-              <Text style={{ color: colors.success }}>{detectedName}</Text>
-            </Text>
-          )
-        }
+        {isLoadingName ? (
+          <Text style={[styles.name, { color: colors.textSecondary }]}>
+            Looking up your account...
+          </Text>
+        ) : detectedName ? (
+          <Text style={[styles.name]}>
+            <Text style={{ color: colors.text }}>Welcome{' '}</Text>
+            <Text style={{ color: colors.success }}>{detectedName}</Text>
+          </Text>
+        ) : null}
         <CustomInput
           label="Password"
           placeholder="Enter your password"
@@ -105,7 +160,7 @@ export default function Register() {
 
         <Text style={[styles.label, { color: colors.text }]}>Gender</Text>
         <View style={styles.genderContainer}>
-          {GENDER_OPTIONS.map((option) => (
+          {genderOptions.map((option) => (
             <Button
               key={option}
               title={option}
@@ -127,8 +182,8 @@ export default function Register() {
           onPress={handleRegister}
           loading={loading}
           style={styles.button}
+          disabled={!email || !password || !gender || password !== confirmPassword || loading}
         />
-
         <View style={styles.loginContainer}>
           <Text style={{ color: colors.textSecondary }}>
             Already have an account?{' '}
