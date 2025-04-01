@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
-import { CustomInput } from '../components/CustomInput';
-import { OTPInput } from '../components/OTPInput';
-import { Button } from '../components/Button';
+import CustomInput from '../components/CustomInput';
+import OTPInput from '../components/OTPInput';
+import Button  from '../components/Button';
 
 export default function ResetPassword() {
   const [code, setCode] = useState(['', '', '', '']);

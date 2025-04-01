@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../context/ThemeContext';
-import { Button } from './components/Button';
+import Button from './components/Button';
 import { welcomeSlides } from '../config';
 
 const { width } = Dimensions.get('window');

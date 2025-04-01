@@ -7,7 +7,7 @@ interface OTPInputProps {
   setCode: (code: string[]) => void;
 }
 
-export function OTPInput({ code, setCode }: OTPInputProps) {
+export default function OTPInput({ code, setCode }: OTPInputProps) {
   const { colors } = useTheme();
   const inputRefs = useRef<Array<TextInput | null>>([]);
 

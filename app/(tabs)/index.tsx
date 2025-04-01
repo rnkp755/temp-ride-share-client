@@ -6,7 +6,7 @@ import { MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import API from '@/axios';
 import { Post } from '@/types';
-import { TripCard } from '../components/TripCard';
+import TripCard from '../components/TripCard';
 
 export default function HomeScreen() {
   const { colors } = useTheme();

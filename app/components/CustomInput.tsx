@@ -26,7 +26,7 @@ interface CustomInputProps {
 
 const EMAIL_DOMAINS = allowedEmailDomains;
 
-export function CustomInput({
+export default function CustomInput({
   placeholder,
   value,
   onChangeText,

@@ -7,7 +7,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Post } from '@/types';
 
 // Changed to a proper functional component
-export function TripCard({ item, index = 1 }: { item: Post; index: number }) {
+export default function TripCard({ item, index = 1 }: { item: Post; index: number }) {
     const { colors } = useTheme();
     const router = useRouter();
             

@@ -7,7 +7,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import debounce from 'lodash.debounce';
 import API from '@/axios';
 import { Post } from '@/types';
-import {TripCard} from '../components/TripCard';
+import TripCard from '../components/TripCard';
 
 
 // Define proper types with readonly where appropriate

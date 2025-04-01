@@ -18,7 +18,7 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function Button({
+export default function Button({
   title,
   onPress,
   loading = false,
