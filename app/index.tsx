@@ -1,133 +1,76 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Image,
-  Dimensions,
-  Text,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import API from '@/axios';
 import { useTheme } from '../context/ThemeContext';
-import { Button } from './components/Button';
-import { welcomeSlides } from '../config';
+import Welcome from './welcome';
 
-const { width } = Dimensions.get('window');
 
-export default function Welcome() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+export default function Index() {
   const { colors } = useTheme();
+  const [loading, setLoading] = useState(true);
 
-  const renderItem = ({ item }: { item: (typeof welcomeSlides)[0] }) => (
-    <View style={styles.slide}>
-      <Image source={{ uri: item.image }} style={styles.image} />
-      <View style={[styles.textContainer]}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          {item.title}
-        </Text>
-        <Text
-          style={[
-            styles.description,
-            { color: colors.textSecondary },
-          ]}
-        >
-          {item.description}
-        </Text>
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        if (refreshToken) {
+          const response = await API.post('/user/refresh-access-token', { refreshToken });
+
+          if (response.status !== 200) {
+            throw new Error('Login failed');
+          }
+
+          const cookies = response.headers['set-cookie'];
+          if (cookies?.length) {
+            let accessToken = '';
+            let refreshToken = '';
+            
+            cookies[0].split(',').forEach((cookie) => {
+              cookie = cookie.trim();
+              if (cookie.startsWith('accessToken=')) {
+                accessToken = cookie.split(';')[0].split('=')[1];
+              }
+              if (cookie.startsWith('refreshToken=')) {
+                refreshToken = cookie.split(';')[0].split('=')[1];
+              }
+            });
+    
+            if (accessToken) {
+              await SecureStore.setItemAsync('accessToken', accessToken);
+            }
+            if (refreshToken) {
+              await SecureStore.setItemAsync('refreshToken', refreshToken);
+            }
+          }
+          
+          router.replace('/(tabs)'); // Navigate to home if session is valid
+        }
+      } catch (error) {
+        console.error('Session refresh failed:', error);
+      }
+      setLoading(false); // Show welcome screen if auth fails
+    };
+
+    checkAuth();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
-    </View>
-  );
+    );
+  }
 
-  const handleScroll = (event: any) => {
-    const slideSize = event.nativeEvent.layoutMeasurement.width;
-    const index = event.nativeEvent.contentOffset.x / slideSize;
-    const roundIndex = Math.round(index);
-    setCurrentIndex(roundIndex);
-  };
-
-  const handleGetStarted = () => {
-    router.replace('/auth/login');
-  };
-
-  return ( 
-    <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <FlatList 
-        ref={flatListRef} 
-        data={welcomeSlides} 
-        renderItem={renderItem} 
-        horizontal 
-        pagingEnabled 
-        showsHorizontalScrollIndicator={false} 
-        onScroll={handleScroll} 
-        scrollEventThrottle={16} 
-      /> 
-      <View style={styles.pagination}> 
-        {welcomeSlides.map((_, index) => ( 
-          <View 
-            key={index} 
-            style={[ 
-              styles.paginationDot, 
-              { 
-                backgroundColor: 
-                  index === currentIndex ? colors.primary : colors.border, 
-              }, 
-            ]} 
-          /> 
-        ))} 
-      </View>
-      <View style={styles.buttonContainer}> 
-        <Button title="Get Started" onPress={handleGetStarted} /> 
-      </View>
-    </View> 
-  );
+  return <Welcome />; // Show welcome screen if no active session
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  slide: {
-    width,
-    height: '100%',
-    justifyContent: 'space-between', 
-  },
-  image: {
-    width: '100%',
-    height: '80%', 
-    resizeMode: 'cover',
-  },
-  textContainer: {
-    flex: 1,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  pagination: {
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
-    paddingBottom: 20, // Added padding instead of absolute positioning
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
-  },
-  buttonContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 48,
   },
 });

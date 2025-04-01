@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "bolt-expo-nativewind",
-    "slug": "bolt-expo-nativewind",
+    "name": "rnkp755-rideshare",
+    "slug": "rnkp755-rideshare",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -18,10 +18,28 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "android": {
+      "package": "com.rnkp755.rideshare",
+      "googleServicesFile": "./google-services.json",
+      "notification": {
+        "icon": "./assets/images/icon.png",
+        "color": "#ffffff"
+      }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "cbc6816e-ad98-4e07-8fad-8d16a78323c3"
+      }
     }
   }
 }

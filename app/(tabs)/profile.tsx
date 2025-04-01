@@ -1,34 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
-import { View, Text, StyleSheet, Image, Pressable, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, Switch, ScrollView, Alert } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-import { useUserStore } from '@/store/userStore';
-import { useTripStore } from '@/store/tripStore';
-import { User, Moon, Sun, LogOut, Settings, MapPin } from 'lucide-react-native';
+import { Moon, Sun, LogOut, Settings, MapPin, User } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { useAuthStore } from '../../store/authStore';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import API from '@/axios';
+import * as SecureStore from 'expo-secure-store';
+import { footerMsg } from '@/config';
 
 export default function ProfileScreen() {
   const { theme, toggleTheme, colors } = useTheme();
-  const { user } = useUserStore();
-  const { trips } = useTripStore();
-
-  const logout = useAuthStore((state) => state.logout);
-
-  const handleLogout = () => {
-    logout();
-    router.replace('/auth/login');
-  };
-  
-  const userTrips = trips.filter(trip => trip.user.id === user.id);
-  
+  const [user, setUser] = useState({ avatar: '', name: '', email: '', role: '' });
   const [isDarkMode, setIsDarkMode] = useState(theme === 'dark');
-  
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userInAsyncStorage = await AsyncStorage.getItem('user');
+      const parsedUser = userInAsyncStorage ? JSON.parse(userInAsyncStorage) : {};
+      setUser({ avatar: parsedUser.avatar || '', name: parsedUser.name || '', email: parsedUser.email || '', role: parsedUser.role || '' });
+    };
+    fetchUser();
+  }, []);
+
   const handleToggleTheme = () => {
     setIsDarkMode(!isDarkMode);
     toggleTheme();
   };
+
+  const handleLogout = async () => {
+    try {
+      const accessToken = await SecureStore.getItemAsync('accessToken');
+      if (!accessToken) throw new Error('No access token found');
+      
+      await API.post('/user/logout', {}, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      
+      await AsyncStorage.clear();
+      await SecureStore.deleteItemAsync('accessToken');
+      await SecureStore.deleteItemAsync('refreshToken');
+      
+      router.replace('/auth/login');
+    } catch (error) {
+      Alert.alert('Logout Failed', 'Something went wrong, please try again.');
+    }
+  };
+
+  const roleSymbols: Record<'student' | 'employee' | 'admin', string> = {
+    student: '⭐',
+    employee: '🌟',
+    admin: '🔥',
+  };
+
+  const roleSymbol = roleSymbols[user.role as keyof typeof roleSymbols] || '❓';
 
   return (
     <ScrollView 
@@ -40,14 +65,16 @@ export default function ProfileScreen() {
           <Animated.View entering={FadeIn.duration(600)}>
             <Image source={{ uri: user.avatar }} style={styles.avatar} />
           </Animated.View>
-          <Text style={[styles.name, { color: colors.text }]}>{user.name}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>
+            {user.name} {roleSymbol}
+          </Text>
           <Text style={[styles.email, { color: colors.textSecondary }]}>{user.email}</Text>
         </View>
       </View>
       
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.statValue, { color: colors.text }]}>{userTrips.length}</Text>
+          <Text style={[styles.statValue, { color: colors.text }]}>{12}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Trips Posted</Text>
         </View>
         
@@ -126,7 +153,7 @@ export default function ProfileScreen() {
       
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-          RideShare v1.0.0
+          {footerMsg}
         </Text>
       </View>
     </ScrollView>

@@ -4,8 +4,10 @@ import { router } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { CustomInput } from '../components/CustomInput';
 import { Button } from '../components/Button';
-import { useAuthStore } from '../../store/authStore';
 import { allowedEmailDomains, emailPlaceholder } from '@/config';
+import API from '@/axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,29 +16,58 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { colors } = useTheme();
-  const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
-  const setUser = useAuthStore((state) => state.setUser);
 
   const handleLogin = async () => {
     setError('');
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await API.post('/user/login', {
+        email: email + emailDomain,
+        password,
+      });
 
-      const fullEmail = email + emailDomain;
-      
-      // Mock validation
-      if (fullEmail === 'test@gmail.com' && password === 'password123') {
-        setUser({ email: fullEmail, gender: 'male' });
-        setIsAuthenticated(true);
-        router.replace('/(tabs)');
-      } else {
-        setError('Invalid email or password');
+      if (response.status !== 200) {
+        throw new Error('Login failed');
       }
+
+      const user = response.data?.data.user;
+      
+      // Store user details locally
+      await AsyncStorage.setItem('user', JSON.stringify({
+        name: user.name,
+        email: user.email,
+        gender: user.gender,
+        avatar: user.avatar,
+        role: user.role,
+        settings: user.settings
+      }));
+      const cookies = response.headers['set-cookie'];
+      if (cookies?.length) {
+        let accessToken = '';
+        let refreshToken = '';
+        
+        cookies[0].split(',').forEach((cookie) => {
+          cookie = cookie.trim();
+          if (cookie.startsWith('accessToken=')) {
+            accessToken = cookie.split(';')[0].split('=')[1];
+          }
+          if (cookie.startsWith('refreshToken=')) {
+            refreshToken = cookie.split(';')[0].split('=')[1];
+          }
+        });
+
+        if (accessToken) {
+          await SecureStore.setItemAsync('accessToken', accessToken);
+        }
+        if (refreshToken) {
+          await SecureStore.setItemAsync('refreshToken', refreshToken);
+        }
+      }
+
+      router.replace('/(tabs)');
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError('Invalid email or password');
     } finally {
       setLoading(false);
     }

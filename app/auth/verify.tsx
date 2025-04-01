@@ -76,8 +76,9 @@ export default function Verify() {
       if (cookies?.length) {
         let accessToken = '';
         let refreshToken = '';
-
-        cookies.forEach((cookie) => {
+        
+        cookies[0].split(',').forEach((cookie) => {
+          cookie = cookie.trim();
           if (cookie.startsWith('accessToken=')) {
             accessToken = cookie.split(';')[0].split('=')[1];
           }
