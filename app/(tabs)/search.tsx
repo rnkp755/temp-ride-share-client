@@ -1,64 +1,160 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, FlatList, Image } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
-import { useTripStore } from '@/store/tripStore';
 import { Search, MapPin, Calendar, Clock, Car } from 'lucide-react-native';
-import { ROUTES } from '@/constants/routes';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import debounce from 'lodash.debounce';
+import API from '@/axios';
+
+type Route = {
+  _id: string;
+  src: string;
+  dest: string;
+  via: string[];
+}
+
+type Post = 
+{
+  _id: string,
+  userId: {
+    _id: string,
+    name: string,
+    email: string,
+    gender: "male" | "female" | "other",
+    avatar: string,
+    role: "student" | "employee" | "admin",
+  },
+  src: string,
+  dest: string,
+  via: string,
+  tripDate: string,
+  tripTime: string,
+  transportation: "Bike" | "Auto" | "Car" | "Bus" | "Unknown",
+  notes: string,
+  visibleTo: string
+}
 
 export default function SearchScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { trips } = useTripStore();
   
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<Post[]>([]);
   const [showSourceSuggestions, setShowSourceSuggestions] = useState(false);
   const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
   
-  const places = ROUTES.reduce((acc, route) => {
-    if (!acc.includes(route.from)) acc.push(route.from);
-    if (!acc.includes(route.to)) acc.push(route.to);
-    route.via.forEach(place => {
-      if (!acc.includes(place)) acc.push(place);
-    });
-    return acc;
-  }, []);
+  const [sourceSuggestions, setSourceSuggestions] = useState<string[]>([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   
-  const filteredSourcePlaces = places.filter(place => 
-    place.toLowerCase().includes(source.toLowerCase())
+  
+  // Debounce the API calls for route suggestions
+  const debouncedFetchSourceSuggestions = useCallback(
+    debounce(async (text) => {
+      if (text.length < 2) {
+        setSourceSuggestions([]);
+        return;
+      }
+      
+      try {
+        const response = await API.get(`/route/search?src=${text}`);
+        if (response.data && response.data.data) {
+          // Extract unique source locations from routes
+          const routes = response.data.data as Route[];
+          const suggestions = [...new Set(routes.map((route) => route.src))];
+          setSourceSuggestions(suggestions);
+        }
+      } catch (error) {
+        console.error('Error fetching source suggestions:', error);
+        setSourceSuggestions([]);
+      }
+    }, 300),
+    []
   );
   
-  const filteredDestinationPlaces = places.filter(place => 
-    place.toLowerCase().includes(destination.toLowerCase())
+  const debouncedFetchDestinationSuggestions = useCallback(
+    debounce(async (text) => {
+      if (text.length < 2) {
+        setDestinationSuggestions([]);
+        return;
+      }
+      
+      try {
+        const response = await API.get(`/route/search?dest=${text}`);
+        if (response.data && response.data.data) {
+          const routes = response.data.data as Route[];
+          const suggestions = [...new Set(routes.map((route) => route.dest))];
+          setDestinationSuggestions(suggestions);
+        }
+      } catch (error) {
+        console.error('Error fetching destination suggestions:', error);
+        setDestinationSuggestions([]);
+      }
+    }, 300),
+    []
   );
   
-  const handleSearch = () => {
+  // Effect to fetch source suggestions whenever source input changes
+  useEffect(() => {
+    if (source) {
+      debouncedFetchSourceSuggestions(source);
+    } else {
+      setSourceSuggestions([]);
+    }
+    
+    return () => {
+      debouncedFetchSourceSuggestions.cancel();
+    };
+  }, [source, debouncedFetchSourceSuggestions]);
+  
+  // Effect to fetch destination suggestions whenever destination input changes
+  useEffect(() => {
+    if (destination) {
+      debouncedFetchDestinationSuggestions(destination);
+    } else {
+      setDestinationSuggestions([]);
+    }
+    
+    return () => {
+      debouncedFetchDestinationSuggestions.cancel();
+    };
+  }, [destination, debouncedFetchDestinationSuggestions]);
+  
+  const handleSearch = async () => {
     if (!source || !destination) return;
     
-    const results = trips.filter(trip => {
-      const routeFromMatches = trip.route.from.toLowerCase() === source.toLowerCase();
-      const routeToMatches = trip.route.to.toLowerCase() === destination.toLowerCase();
+    setLoading(true);
+    try {
+      const response = await API.get(`/post`, {
+        params: {
+          src: source,
+          dest: destination,
+          page: 1,
+          limit: 10,
+          sortBy: 'createdAt',
+          sortType: 'desc'
+        }
+      });
       
-      const sourceInVia = trip.route.via.some(
-        place => place.toLowerCase() === source.toLowerCase()
-      );
-      
-      const destinationInVia = trip.route.via.some(
-        place => place.toLowerCase() === destination.toLowerCase()
-      );
-      
-      return (routeFromMatches || sourceInVia) && (routeToMatches || destinationInVia);
-    });
-    
-    setSearchResults(results);
-    setShowSourceSuggestions(false);
-    setShowDestinationSuggestions(false);
+      if (response.data && response.data.data && response.data.data.posts) {
+        const posts = response.data.data.posts as Post[];
+        setSearchResults(posts);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching for trips:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+      setShowSourceSuggestions(false);
+      setShowDestinationSuggestions(false);
+    }
   };
   
-  const renderTripCard = ({ item }) => {
+  const renderTripCard = ({ item }: { item: Post }) => {
     return (
       <Animated.View 
         entering={FadeInDown.springify()} 
@@ -66,16 +162,23 @@ export default function SearchScreen() {
       >
         <Pressable 
           style={styles.cardContent}
-          onPress={() => router.push(`/trip/${item.id}`)}
+          onPress={() => router.push(`/trip/${item._id}`)}
           android_ripple={{ color: colors.ripple }}
         >
-          <View style={styles.userInfo}>
+            <View style={styles.userInfo}>
             <Image 
-              source={{ uri: item.user.avatar }} 
+              source={{ uri: item.userId?.avatar || 'https://via.placeholder.com/40' }} 
               style={styles.avatar} 
             />
-            <Text style={[styles.userName, { color: colors.text }]}>{item.user.name}</Text>
-          </View>
+            <View>
+              <Text style={[styles.userName, { color: colors.text }]}>
+              {item.userId?.name || 'Unknown User'}
+              </Text>
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {item.userId?.email || 'No Email Provided'}
+              </Text>
+            </View>
+            </View>
           
           <View style={styles.routeContainer}>
             <View style={styles.routePoints}>
@@ -86,14 +189,14 @@ export default function SearchScreen() {
               </View>
               
               <View style={styles.routeLabels}>
-                <Text style={[styles.routeText, { color: colors.text }]}>{item.route.from}</Text>
-                <Text style={[styles.routeText, { color: colors.text }]}>{item.route.to}</Text>
+                <Text style={[styles.routeText, { color: colors.text }]}>{item.src}</Text>
+                <Text style={[styles.routeText, { color: colors.text }]}>{item.dest}</Text>
               </View>
             </View>
             
             <View style={styles.viaContainer}>
               <Text style={[styles.viaText, { color: colors.textSecondary }]}>
-                via {item.route.via.join(', ')}
+                {item.via ? `via ${item.via}` : 'Direct route'}
               </Text>
             </View>
           </View>
@@ -102,14 +205,14 @@ export default function SearchScreen() {
             <View style={styles.detailItem}>
               <Calendar size={16} color={colors.primary} />
               <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {new Date(item.date).toLocaleDateString()}
+                {item.tripDate ? new Date(item.tripDate).toLocaleDateString() : 'Not specified'}
               </Text>
             </View>
             
             <View style={styles.detailItem}>
               <Clock size={16} color={colors.primary} />
               <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {item.time}
+                {item.tripTime || 'Not specified'}
               </Text>
             </View>
             
@@ -123,7 +226,7 @@ export default function SearchScreen() {
           
           <Pressable
             style={[styles.connectButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push(`/messages/${item.user.id}`)}
+            onPress={() => router.push(`/messages/${item.userId?._id}`)}
           >
             <Text style={styles.connectButtonText}>Connect</Text>
           </Pressable>
@@ -132,7 +235,12 @@ export default function SearchScreen() {
     );
   };
   
-  const renderSuggestion = (item, isSource) => {
+  interface SuggestionProps {
+    item: string;
+    isSource: boolean;
+  }
+
+  const renderSuggestion = ({ item, isSource }: SuggestionProps) => {
     return (
       <Pressable
         style={[styles.suggestionItem, { borderBottomColor: colors.border }]}
@@ -176,22 +284,22 @@ export default function SearchScreen() {
             />
           </View>
           
-          {showSourceSuggestions && filteredSourcePlaces.length > 0 && (
+          {showSourceSuggestions && sourceSuggestions.length > 0 && (
             <Animated.View 
               entering={FadeIn.duration(200)} 
               style={[styles.suggestionsContainer, { backgroundColor: colors.card }]}
             >
               <FlatList
-                data={filteredSourcePlaces}
-                renderItem={({ item }) => renderSuggestion(item, true)}
-                keyExtractor={(item) => `source-${item}`}
+                data={sourceSuggestions}
+                renderItem={({ item }) => renderSuggestion({ item, isSource: true })}
+                keyExtractor={(item, index) => `source-${index}-${item}`}
                 keyboardShouldPersistTaps="handled"
               />
             </Animated.View>
           )}
         </View>
         
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, styles.destContainer]}>
           <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <MapPin size={20} color={colors.primary} />
             <TextInput
@@ -207,15 +315,15 @@ export default function SearchScreen() {
             />
           </View>
           
-          {showDestinationSuggestions && filteredDestinationPlaces.length > 0 && (
+          {showDestinationSuggestions && destinationSuggestions.length > 0 && (
             <Animated.View 
               entering={FadeIn.duration(200)} 
               style={[styles.suggestionsContainer, { backgroundColor: colors.card }]}
             >
               <FlatList
-                data={filteredDestinationPlaces}
-                renderItem={({ item }) => renderSuggestion(item, false)}
-                keyExtractor={(item) => `destination-${item}`}
+                data={destinationSuggestions}
+                renderItem={({ item }) => renderSuggestion({ item, isSource: false })}
+                keyExtractor={(item, index) => `destination-${index}-${item}`}
                 keyboardShouldPersistTaps="handled"
               />
             </Animated.View>
@@ -223,11 +331,17 @@ export default function SearchScreen() {
         </View>
         
         <Pressable
-          style={[styles.searchButton, { backgroundColor: colors.primary }]}
+          style={[
+            styles.searchButton, 
+            { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }
+          ]}
           onPress={handleSearch}
+          disabled={loading}
         >
           <Search size={20} color="#fff" />
-          <Text style={styles.searchButtonText}>Search</Text>
+          <Text style={styles.searchButtonText}>
+            {loading ? 'Searching...' : 'Search'}
+          </Text>
         </Pressable>
       </View>
       
@@ -236,7 +350,7 @@ export default function SearchScreen() {
           <FlatList
             data={searchResults}
             renderItem={renderTripCard}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
@@ -274,10 +388,15 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
+    zIndex: 2,
   },
   inputContainer: {
     marginBottom: 12,
-    zIndex: 10,
+    zIndex: 3,
+    position: 'relative',
+  },
+  destContainer: {
+    zIndex: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -299,7 +418,7 @@ const styles = StyleSheet.create({
     right: 0,
     borderRadius: 12,
     maxHeight: 200,
-    zIndex: 20,
+    zIndex: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -324,6 +443,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     marginTop: 8,
+    zIndex: 1,
   },
   searchButtonText: {
     color: '#fff',
@@ -334,6 +454,7 @@ const styles = StyleSheet.create({
   resultsContainer: {
     flex: 1,
     paddingHorizontal: 20,
+    zIndex: 1,
   },
   listContent: {
     paddingVertical: 16,

@@ -14,7 +14,7 @@ export default function CreateTripScreen() {
   const { addTrip } = useTripStore();
   const { user } = useUserStore();
   
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState<{ from: string; to: string; via: string[] } | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('12:00');
   const [transportation, setTransportation] = useState('');
