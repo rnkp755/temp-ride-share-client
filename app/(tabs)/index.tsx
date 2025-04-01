@@ -2,93 +2,50 @@ import { View, Text, StyleSheet, FlatList, Pressable, Image } from 'react-native
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
 import { useTripStore } from '@/store/tripStore';
-import { formatDistanceToNow } from 'date-fns';
-import { MapPin, Calendar, Clock, Car } from 'lucide-react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { MapPin } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import API from '@/axios';
+import { Post } from '@/types';
+import { TripCard } from '../components/TripCard';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { trips } = useTripStore();
 
-  const renderTripCard = ({ item, index }) => {
-    const timeAgo = formatDistanceToNow(new Date(item.date), { addSuffix: true });
-    
-    return (
-      <Animated.View 
-        entering={FadeInUp.delay(index * 100).springify()} 
-        style={[styles.card, { backgroundColor: colors.card }]}
-      >
-        <Pressable 
-          style={styles.cardContent}
-          onPress={() => router.push(`/trip/${item.id}`)}
-          android_ripple={{ color: colors.ripple }}
-        >
-          <View style={styles.userInfo}>
-            <Image 
-              source={{ uri: item.user.avatar }} 
-              style={styles.avatar} 
-            />
-            <View>
-              <Text style={[styles.userName, { color: colors.text }]}>{item.user.name}</Text>
-              <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>{timeAgo}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.routeContainer}>
-            <View style={styles.routePoints}>
-              <View style={styles.pointLine}>
-                <View style={[styles.startPoint, { backgroundColor: colors.primary }]} />
-                <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
-                <View style={[styles.endPoint, { backgroundColor: colors.primary }]} />
-              </View>
-              
-              <View style={styles.routeLabels}>
-                <Text style={[styles.routeText, { color: colors.text }]}>{item.route.from}</Text>
-                <Text style={[styles.routeText, { color: colors.text }]}>{item.route.to}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.viaContainer}>
-              <Text style={[styles.viaText, { color: colors.textSecondary }]}>
-                via {item.route.via.join(', ')}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.tripDetails}>
-            <View style={styles.detailItem}>
-              <Calendar size={16} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {new Date(item.date).toLocaleDateString()}
-              </Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Clock size={16} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {item.time}
-              </Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Car size={16} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {item.transportation || 'Undecided'}
-              </Text>
-            </View>
-          </View>
-          
-          <Pressable
-            style={[styles.connectButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push(`/messages/${item.user.id}`)}
-          >
-            <Text style={styles.connectButtonText}>Connect</Text>
-          </Pressable>
-        </Pressable>
-      </Animated.View>
-    );
+  const [loading, setLoading] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+  
+  const loadPosts = async () => {
+    setLoading(true);
+    try {
+      const response = await API.get(`/post`, {
+        params: {
+          page: 1,
+          limit: 10,
+          sortBy: 'createdAt',
+          sortType: 'desc'
+        }
+      });
+      
+      if (response.data && response.data.data && response.data.data.posts) {
+        const posts = response.data.data.posts as Post[];
+        setPosts(posts);
+      }
+    } catch (error) {
+      console.error('Error searching for trips:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const renderItem = ({ item, index }: { item: Post; index: number }) => (
+    <TripCard item={item} index={index} />
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -97,11 +54,11 @@ export default function HomeScreen() {
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Find travel companions</Text>
       </View>
       
-      {trips.length > 0 ? (
+      {posts.length > 0 ? (
         <FlatList
-          data={trips}
-          renderItem={renderTripCard}
-          keyExtractor={(item) => item.id.toString()}
+          data={posts}
+          renderItem={renderItem}
+          keyExtractor={(item) => item._id.toString()}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />

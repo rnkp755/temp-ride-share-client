@@ -6,34 +6,23 @@ import { Search, MapPin, Calendar, Clock, Car } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import debounce from 'lodash.debounce';
 import API from '@/axios';
+import { Post } from '@/types';
+import {TripCard} from '../components/TripCard';
 
+
+// Define proper types with readonly where appropriate
 type Route = {
-  _id: string;
-  src: string;
-  dest: string;
-  via: string[];
+  readonly _id: string;
+  readonly src: string;
+  readonly dest: string;
+  readonly via: string[];
+};
+
+interface SuggestionProps {
+  item: string;
+  isSource: boolean;
 }
 
-type Post = 
-{
-  _id: string,
-  userId: {
-    _id: string,
-    name: string,
-    email: string,
-    gender: "male" | "female" | "other",
-    avatar: string,
-    role: "student" | "employee" | "admin",
-  },
-  src: string,
-  dest: string,
-  via: string,
-  tripDate: string,
-  tripTime: string,
-  transportation: "Bike" | "Auto" | "Car" | "Bus" | "Unknown",
-  notes: string,
-  visibleTo: string
-}
 
 export default function SearchScreen() {
   const { colors } = useTheme();
@@ -123,7 +112,7 @@ export default function SearchScreen() {
   }, [destination, debouncedFetchDestinationSuggestions]);
   
   const handleSearch = async () => {
-    if (!source || !destination) return;
+    if (!source && !destination) return;
     
     setLoading(true);
     try {
@@ -153,92 +142,6 @@ export default function SearchScreen() {
       setShowDestinationSuggestions(false);
     }
   };
-  
-  const renderTripCard = ({ item }: { item: Post }) => {
-    return (
-      <Animated.View 
-        entering={FadeInDown.springify()} 
-        style={[styles.card, { backgroundColor: colors.card }]}
-      >
-        <Pressable 
-          style={styles.cardContent}
-          onPress={() => router.push(`/trip/${item._id}`)}
-          android_ripple={{ color: colors.ripple }}
-        >
-            <View style={styles.userInfo}>
-            <Image 
-              source={{ uri: item.userId?.avatar || 'https://via.placeholder.com/40' }} 
-              style={styles.avatar} 
-            />
-            <View>
-              <Text style={[styles.userName, { color: colors.text }]}>
-              {item.userId?.name || 'Unknown User'}
-              </Text>
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              {item.userId?.email || 'No Email Provided'}
-              </Text>
-            </View>
-            </View>
-          
-          <View style={styles.routeContainer}>
-            <View style={styles.routePoints}>
-              <View style={styles.pointLine}>
-                <View style={[styles.startPoint, { backgroundColor: colors.primary }]} />
-                <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
-                <View style={[styles.endPoint, { backgroundColor: colors.primary }]} />
-              </View>
-              
-              <View style={styles.routeLabels}>
-                <Text style={[styles.routeText, { color: colors.text }]}>{item.src}</Text>
-                <Text style={[styles.routeText, { color: colors.text }]}>{item.dest}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.viaContainer}>
-              <Text style={[styles.viaText, { color: colors.textSecondary }]}>
-                {item.via ? `via ${item.via}` : 'Direct route'}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.tripDetails}>
-            <View style={styles.detailItem}>
-              <Calendar size={16} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {item.tripDate ? new Date(item.tripDate).toLocaleDateString() : 'Not specified'}
-              </Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Clock size={16} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {item.tripTime || 'Not specified'}
-              </Text>
-            </View>
-            
-            <View style={styles.detailItem}>
-              <Car size={16} color={colors.primary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                {item.transportation || 'Undecided'}
-              </Text>
-            </View>
-          </View>
-          
-          <Pressable
-            style={[styles.connectButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push(`/messages/${item.userId?._id}`)}
-          >
-            <Text style={styles.connectButtonText}>Connect</Text>
-          </Pressable>
-        </Pressable>
-      </Animated.View>
-    );
-  };
-  
-  interface SuggestionProps {
-    item: string;
-    isSource: boolean;
-  }
 
   const renderSuggestion = ({ item, isSource }: SuggestionProps) => {
     return (
@@ -259,6 +162,10 @@ export default function SearchScreen() {
       </Pressable>
     );
   };
+
+  const renderItem = ({ item, index }: { item: Post; index: number }) => (
+    <TripCard item={item} index={index} />
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -333,10 +240,10 @@ export default function SearchScreen() {
         <Pressable
           style={[
             styles.searchButton, 
-            { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }
+            { backgroundColor: colors.primary, opacity: (loading || (!source && !destination)) ? 0.7 : 1 }
           ]}
           onPress={handleSearch}
-          disabled={loading}
+          disabled={loading || (!source && !destination)}
         >
           <Search size={20} color="#fff" />
           <Text style={styles.searchButtonText}>
@@ -349,7 +256,7 @@ export default function SearchScreen() {
         {searchResults.length > 0 ? (
           <FlatList
             data={searchResults}
-            renderItem={renderTripCard}
+            renderItem={renderItem}
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
