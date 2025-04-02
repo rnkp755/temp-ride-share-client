@@ -3,13 +3,15 @@ import { useTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
 import { Calendar, Clock, Car, Bike } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { formatDistanceToNow } from 'date-fns';
 
 import { Post } from '@/types';
 
 // Changed to a proper functional component
 export default function TripCard({ item, index = 1 }: { item: Post; index: number }) {
     const { colors } = useTheme();
-    const router = useRouter();
+  const router = useRouter();
+  const timeAgo = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true });
             
     return (
         <Animated.View 
@@ -27,8 +29,11 @@ export default function TripCard({ item, index = 1 }: { item: Post; index: numbe
                   style={styles.avatar} 
                 />
                 <View>
-                  <Text style={[styles.userName, { color: colors.text }]}>{item.userId?.name || 'Unknown User'}</Text>
-                  <Text style={[styles.detailText, { color: colors.textSecondary }]}>{item.userId?.email || 'No Email Provided'}</Text>
+                <Text style={[styles.userName, { color: colors.text }]}>{item.userId?.name || 'Unknown User'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '92%' }}>
+                  <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>{item.userId?.email || 'No Email Provided'}</Text>
+                  <Text style={[styles.secondaryText, { color: colors.textSecondary }]}>{timeAgo}</Text>
+                </View>
                 </View>
               </View>
               
@@ -173,6 +178,9 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 14,
     marginLeft: 6,
+  },
+  secondaryText: {
+    fontSize: 14,
   },
   connectButton: {
     paddingVertical: 10,

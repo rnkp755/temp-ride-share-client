@@ -1,51 +1,228 @@
-import { View, Text, StyleSheet, FlatList, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
 import { useTripStore } from '@/store/tripStore';
 import { MapPin } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '@/axios';
 import { Post } from '@/types';
 import TripCard from '../components/TripCard';
+import FilterSortOptions from '../components/FilterSort';
 
-export default function HomeScreen() {
+// Constants
+const POSTS_STORAGE_KEY = 'cached_posts';
+const PAGE_SIZE = 10;
+
+export default function Index() {  // Changed from HomeScreen to Index for default export
   const { colors } = useTheme();
   const router = useRouter();
   const { trips } = useTripStore();
 
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
-  
-  const loadPosts = async () => {
-    setLoading(true);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [filterOptions, setFilterOptions] = useState({
+    tripDate: '',
+    transportation: [] as string[]
+  });
+  const [sortOption, setSortOption] = useState<'Latest' | 'Oldest'>('Latest');
+
+  // Ref to track if first load is complete
+  const initialLoadComplete = useRef(false);
+
+  // Load cached posts from AsyncStorage
+  const loadCachedPosts = async () => {
     try {
-      const response = await API.get(`/post`, {
-        params: {
-          page: 1,
-          limit: 10,
-          sortBy: 'createdAt',
-          sortType: 'desc'
+      const cachedPostsJson = await AsyncStorage.getItem(POSTS_STORAGE_KEY);
+      if (cachedPostsJson) {
+        const cachedPosts = JSON.parse(cachedPostsJson) as Post[];
+        if (cachedPosts.length > 0) {
+          setPosts(cachedPosts);
+          setFilteredPosts(cachedPosts);
         }
-      });
-      
-      if (response.data && response.data.data && response.data.data.posts) {
-        const posts = response.data.data.posts as Post[];
-        setPosts(posts);
       }
     } catch (error) {
-      console.error('Error searching for trips:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error loading cached posts:', error);
     }
   };
 
+  // Cache posts to AsyncStorage
+  const cachePosts = async (postsToCache: Post[]) => {
+    try {
+      // Only cache the first 5-6 posts for quick loading
+      const postsForCache = postsToCache.slice(0, 6);
+      await AsyncStorage.setItem(POSTS_STORAGE_KEY, JSON.stringify(postsForCache));
+    } catch (error) {
+      console.error('Error caching posts:', error);
+    }
+  };
+
+  // Load posts from API
+  const loadPosts = async (pageNum = 1, shouldRefresh = false) => {
+    if (shouldRefresh) {
+      setRefreshing(true);
+    } else if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      // Get sort type for API
+      const sortType = sortOption === 'Latest' ? 'desc' : 'asc';
+      
+      // Build params object
+      const params: any = {
+        page: pageNum,
+        limit: PAGE_SIZE,
+        sortBy: 'createdAt',
+        sortType
+      };
+      
+      // Add filter params if set
+      if (filterOptions.tripDate) {
+        params.tripDate = filterOptions.tripDate;
+      }
+      
+      if (filterOptions.transportation.length > 0) {
+        params.transportation = filterOptions.transportation.join(',');
+      }
+      
+      const response = await API.get(`/post`, { params });
+      
+      if (response.data && response.data.data && response.data.data.posts) {
+        const newPosts = response.data.data.posts as Post[];
+        
+        // Check if we have more data
+        if (newPosts.length < PAGE_SIZE) {
+          setHasMoreData(false);
+        }
+        
+        // If refreshing or first page, replace posts
+        // Otherwise append to existing posts
+        if (pageNum === 1) {
+          setPosts(newPosts);
+          setFilteredPosts(newPosts);
+          
+          // Cache the posts for future use
+          cachePosts(newPosts);
+        } else {
+          setPosts(prevPosts => [...prevPosts, ...newPosts]);
+          setFilteredPosts(prevPosts => [...prevPosts, ...newPosts]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+      initialLoadComplete.current = true;
+    }
+  };
+
+  // Handle refresh (pull to refresh)
+  const handleRefresh = useCallback(() => {
+    setPage(1);
+    setHasMoreData(true);
+    loadPosts(1, true);
+  }, [filterOptions, sortOption]);
+
+  // Handle load more (infinite scrolling)
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMoreData && initialLoadComplete.current) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadPosts(nextPage);
+    }
+  }, [loadingMore, hasMoreData, page, initialLoadComplete.current, filterOptions, sortOption]);
+
+  // Apply filters and sort to local posts
+  const applyFiltersLocally = useCallback(() => {
+    let result = [...posts];
+    
+    // Apply date filter
+    if (filterOptions.tripDate) {
+      result = result.filter(post => post.tripDate === filterOptions.tripDate);
+    }
+    
+    // Apply transportation filter
+    if (filterOptions.transportation.length > 0) {
+      result = result.filter(post => 
+        filterOptions.transportation.includes(post.transportation)
+      );
+    }
+    
+    // Apply sorting
+    result.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortOption === 'Latest' ? dateB - dateA : dateA - dateB;
+    });
+    
+    setFilteredPosts(result);
+  }, [posts, filterOptions, sortOption]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((newFilters: {
+    tripDate: string,
+    transportation: string[]
+  }) => {
+    setFilterOptions(newFilters);
+    
+    // First apply filters locally for immediate feedback
+    setPage(1);
+    setHasMoreData(true);
+    
+    // Then fetch from API
+    loadPosts(1);
+  }, []);
+
+  // Handle sort changes
+  const handleSortChange = useCallback((newSortOption: 'Latest' | 'Oldest') => {
+    setSortOption(newSortOption);
+    
+    // First apply sort locally for immediate feedback
+    setPage(1);
+    setHasMoreData(true);
+    
+    // Then fetch from API
+    loadPosts(1);
+  }, []);
+
   useEffect(() => {
+    // On initial load, first try to load cached posts
+    loadCachedPosts();
+    
+    // Then fetch fresh posts from API
     loadPosts();
   }, []);
+
+  useEffect(() => {
+    // Apply filters locally when filter options or posts change
+    applyFiltersLocally();
+  }, [filterOptions, sortOption, posts]);
 
   const renderItem = ({ item, index }: { item: Post; index: number }) => (
     <TripCard item={item} index={index} />
   );
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.loadingMoreContainer}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={[styles.loadingMoreText, { color: colors.textSecondary }]}>
+          Loading more trips...
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -54,13 +231,38 @@ export default function HomeScreen() {
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Find travel companions</Text>
       </View>
       
-      {posts.length > 0 ? (
+      <FilterSortOptions
+        onFilterChange={handleFilterChange}
+        onSortChange={handleSortChange}
+        filterOptions={filterOptions}
+        sortOption={sortOption}
+      />
+      
+      {loading && posts.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading trips...
+          </Text>
+        </View>
+      ) : filteredPosts.length > 0 ? (
         <FlatList
-          data={posts}
+          data={filteredPosts}
           renderItem={renderItem}
           keyExtractor={(item) => item._id.toString()}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={handleRefresh}
+              colors={[colors.primary]} 
+              tintColor={colors.primary}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
         />
       ) : (
         <View style={styles.emptyContainer}>
@@ -227,5 +429,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  loadingMoreText: {
+    marginLeft: 8,
+    fontSize: 14,
   },
 });

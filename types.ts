@@ -18,4 +18,5 @@ export type Post = {
   readonly transportation: TransportationType;
   readonly notes: string;
   readonly visibleTo: string;
+  readonly createdAt: Date;
 };
