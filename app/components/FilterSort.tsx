@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-import { Filter, ArrowUpDown, X, Calendar, Check, ChevronDown } from 'lucide-react-native';
+import { Filter, ArrowUpDown, X, Calendar, Check } from 'lucide-react-native';
 
 // Define component props
 type FilterSortOptionsProps = {
@@ -296,47 +296,13 @@ export default function FilterSortOptions({
             styles.button,
             { backgroundColor: colors.card }
           ]}
-          onPress={() => setIsSortOpen(!isSortOpen)}
+          onPress={() => onSortChange(sortOption === 'Latest' ? 'Oldest' : 'Latest')}
         >
           <ArrowUpDown size={18} color={colors.text} />
           <Text style={[styles.buttonText, { color: colors.text }]}>
             {sortOption}
           </Text>
-          <ChevronDown size={16} color={colors.text} />
         </Pressable>
-        
-        {/* Sort dropdown */}
-        {isSortOpen && (
-          <View style={[styles.sortDropdown, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <TouchableOpacity
-              style={[
-                styles.sortOption,
-                sortOption === 'Latest' && { backgroundColor: `${colors.primary}20` }
-              ]}
-              onPress={() => {
-                onSortChange('Latest');
-                setIsSortOpen(false);
-              }}
-            >
-              <Text style={[styles.sortOptionText, { color: colors.text }]}>Latest First</Text>
-              {sortOption === 'Latest' && <Check size={16} color={colors.primary} />}
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.sortOption,
-                sortOption === 'Oldest' && { backgroundColor: `${colors.primary}20` }
-              ]}
-              onPress={() => {
-                onSortChange('Oldest');
-                setIsSortOpen(false);
-              }}
-            >
-              <Text style={[styles.sortOptionText, { color: colors.text }]}>Oldest First</Text>
-              {sortOption === 'Oldest' && <Check size={16} color={colors.primary} />}
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
       {/* Filter Modal */}

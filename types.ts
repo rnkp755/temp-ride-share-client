@@ -1,3 +1,10 @@
+export type Route = {
+  readonly _id: string;
+  readonly src: string;
+  readonly dest: string;
+  readonly via: string[];
+};
+
 export type TransportationType = "Bike" | "Auto" | "Car" | "Bus" | "Unknown";
 
 export type Post = {

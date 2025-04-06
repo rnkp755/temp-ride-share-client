@@ -1,4 +1,4 @@
-export const SERVER_URL = 'http://192.168.0.103:8000/api/v1';
+export const SERVER_URL = 'https://ride-share-production-28db.up.railway.app/api/v1';
 export const welcomeSlides = [
   {
     id: '1',

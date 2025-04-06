@@ -17,7 +17,6 @@ const PAGE_SIZE = 10;
 export default function Index() {  // Changed from HomeScreen to Index for default export
   const { colors } = useTheme();
   const router = useRouter();
-  const { trips } = useTripStore();
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
