@@ -22,4 +22,5 @@ export const welcomeSlides = [
 export const allowedEmailDomains = ['@cuchd.in', '@cumail.in']
 export const emailPlaceholder = 'Eg. 22bcs12345'
 export const genderOptions = ['Male', 'Female', 'Other']
+export const allowedVehicles = ["Bike", "Auto", "Car", "Bus", "Unknown"];
 export const footerMsg = "RideShare v1.0.0"
