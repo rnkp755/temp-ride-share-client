@@ -39,7 +39,9 @@ export default function SearchScreen() {
 		[{ nativeEvent: { contentOffset: { y: scrollY } } }],
 		{
 			useNativeDriver: false,
-			listener: (event) => {
+			listener: (event: {
+				nativeEvent: { contentOffset: { y: number } };
+			}) => {
 				const offsetY = event.nativeEvent.contentOffset.y;
 				if (offsetY > 10 && !isCompactMode) {
 					setIsCompactMode(true);
@@ -340,7 +342,7 @@ export default function SearchScreen() {
 					styles.resultsContainer,
 					{
 						flex: 1,
-						paddingTop: isCompactMode ? 60 : 8,
+						paddingTop: 0,
 					},
 				]}
 			>

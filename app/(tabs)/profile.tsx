@@ -27,16 +27,22 @@ export default function ProfileScreen() {
 		gender: "",
 		email: "",
 		role: "",
-		postVisibility: "",
+		settings: {
+			postVisibility: "",
+		},
+		tripsPosted: 0,
 	});
 	const [isDarkMode, setIsDarkMode] = useState(theme === "dark");
 
 	const handleChangePostVisibility = async (visibility: string) => {
-		if (visibility === user.postVisibility) return;
+		if (visibility === user.settings.postVisibility) return;
 
 		setUser((prevUser) => ({
 			...prevUser,
-			postVisibility: visibility,
+			settings: {
+				...prevUser.settings,
+				postVisibility: visibility,
+			},
 		}));
 
 		try {
@@ -76,7 +82,11 @@ export default function ProfileScreen() {
 				gender: parsedUser.gender || "",
 				email: parsedUser.email || "",
 				role: parsedUser.role || "",
-				postVisibility: parsedUser.settings.postVisibility || "",
+				settings: {
+					...parsedUser.settings,
+					postVisibility: parsedUser.settings.postVisibility || "",
+				},
+				tripsPosted: parsedUser.tripsPosted || 0,
 			});
 		};
 		fetchUser();
@@ -143,6 +153,19 @@ export default function ProfileScreen() {
 					>
 						{user.email}
 					</Text>
+					<Text
+						style={[styles.email, { color: colors.textSecondary }]}
+					>
+						{
+							"\u2B24 " +
+							user.role.charAt(0).toUpperCase() +
+							user.role.slice(1) +
+							"   " +
+							"\u2B24 " +
+							user.gender.charAt(0).toUpperCase() +
+							user.gender.slice(1)
+						}
+					</Text>
 				</View>
 			</View>
 
@@ -151,7 +174,7 @@ export default function ProfileScreen() {
 					style={[styles.statCard, { backgroundColor: colors.card }]}
 				>
 					<Text style={[styles.statValue, { color: colors.text }]}>
-						{12}
+						{user.tripsPosted}
 					</Text>
 					<Text
 						style={[
