@@ -11,20 +11,26 @@ import {
 } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
-import { useTripStore } from "@/store/tripStore";
-import { useUserStore } from "@/store/userStore";
 import { allowedVehicles } from "@/config";
 import { ChevronLeft, Calendar, Clock, Car, Check } from "lucide-react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import LocationInput, { LocationProvider } from "../components/LocationInput";
 import CustomDatePicker from "../components/DatePicker";
 import TimePicker from "../components/TimePicker";
+import CustomAlert from "../components/Alert";
+import PostVisibilitySetting from "../components/PostVisibility";
+import API from "@/axios";
+
+type AlertType = "success" | "error" | "info";
+
+interface AlertConfig {
+	type: AlertType;
+	message: string;
+}
 
 export default function CreateTripScreen() {
 	const { colors } = useTheme();
 	const router = useRouter();
-	const { addTrip } = useTripStore();
-	const { user } = useUserStore();
 
 	const [source, setSource] = useState("");
 	const [destination, setDestination] = useState("");
@@ -34,6 +40,18 @@ export default function CreateTripScreen() {
 	const [showTimePicker, setShowTimePicker] = useState(false);
 	const [transportation, setTransportation] = useState("");
 	const [notes, setNotes] = useState("");
+	const [postVisibility, setPostVisibility] = useState("all");
+
+	const [alertVisible, setAlertVisible] = useState<boolean>(false);
+	const [alertConfig, setAlertConfig] = useState<AlertConfig>({
+		type: "success",
+		message: "",
+	});
+
+	const showAlert = (type: AlertType, message: string): void => {
+		setAlertConfig({ type, message });
+		setAlertVisible(true);
+	};
 
 	const handleTimeSelected = (
 		hours: number,
@@ -49,27 +67,39 @@ export default function CreateTripScreen() {
 		setShowTimePicker(false);
 	};
 
-	const handleCreateTrip = () => {
-		if (!source || !destination) return;
+	const handleCreateTrip = async () => {
+		if (
+			!source ||
+			!destination ||
+			!via ||
+			!date ||
+			!time ||
+			!transportation
+		)
+			return;
 
 		const newTrip = {
-			id: Date.now(),
-			user: {
-				id: user.id,
-				name: user.name,
-				avatar: user.avatar,
-			},
 			src: source,
 			dest: destination,
-			date,
-			time,
-			transportation: transportation || "Undecided",
+			via,
+			tripDate: date,
+			tripTime: time,
+			transportation,
 			notes,
-			createdAt: new Date().toISOString(),
+			visibleTo: postVisibility,
 		};
 
-		addTrip(newTrip);
-		router.back();
+		try {
+			const response = await API.post(`/post/create`, newTrip);
+			if (response.data.statusCode != 201) {
+				throw new Error("Failed to create trip");
+			}
+			showAlert("success", "Post created successfully!");
+			console.log("Post created successfully:", response.data.data);
+		} catch (error) {
+			console.error(error);
+			showAlert("error", "Failed to create post. Please try again.");
+		}
 	};
 
 	return (
@@ -267,6 +297,15 @@ export default function CreateTripScreen() {
 					</View>
 				</Animated.View>
 
+				<Animated.View
+					entering={FadeInUp.delay(400).springify()}
+				>
+					<PostVisibilitySetting
+						onChange={setPostVisibility}
+						currVisibility={postVisibility}
+					/>
+				</Animated.View>
+
 				<View style={styles.buttonContainer}>
 					<Pressable
 						style={[
@@ -285,6 +324,13 @@ export default function CreateTripScreen() {
 					</Pressable>
 				</View>
 			</ScrollView>
+			<CustomAlert
+				visible={alertVisible}
+				type={alertConfig.type}
+				message={alertConfig.message}
+				onClose={() => setAlertVisible(false)}
+				duration={3000}
+			/>
 		</View>
 	);
 }

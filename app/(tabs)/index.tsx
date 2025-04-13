@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet, FlatList, Pressable, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
-import { useTripStore } from '@/store/tripStore';
 import { MapPin } from 'lucide-react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';

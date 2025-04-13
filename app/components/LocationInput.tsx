@@ -225,6 +225,14 @@ const LocationInput = ({
 		}
 	}, [isSource, isVia, source, destination, fetchDestinations, fetchVias]);
 
+	// Update the useEffect to set searchText when value changes
+	useEffect(() => {
+		// Initialize searchText with value when component mounts or value changes
+		if (value && searchText === "") {
+			setSearchText(value);
+		}
+	}, [value]);
+
 	// Effect to fetch suggestions whenever input changes
 	useEffect(() => {
 		if (isDropdownMode) {
@@ -261,8 +269,10 @@ const LocationInput = ({
 	]);
 
 	// Handle suggestion selection
+	// Fix the handleSelectSuggestion function to update the searchText state
 	const handleSelectSuggestion = (selection: string) => {
 		onChange(selection);
+		setSearchText(selection); // Add this line to update the search text
 		setShowSuggestions(false);
 
 		if (isSource) {
@@ -312,6 +322,8 @@ const LocationInput = ({
 	const handleTextChange = (text: string) => {
 		if (isDropdownMode) {
 			setSearchText(text);
+			// Also update the value when in dropdown mode
+			onChange(text);
 		} else {
 			onChange(text);
 		}
@@ -392,7 +404,11 @@ const LocationInput = ({
 					entering={FadeIn.duration(200)}
 					style={[
 						styles.suggestionsContainer,
-						{ backgroundColor: colors.card },
+						{
+							backgroundColor: colors.card,
+							zIndex: 20, // Add this to ensure dropdown appears on top
+							elevation: 5, // For Android
+						},
 					]}
 				>
 					<FlatList

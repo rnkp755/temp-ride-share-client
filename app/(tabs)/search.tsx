@@ -12,7 +12,7 @@ import { Search } from "lucide-react-native";
 import API from "@/axios";
 import { Post } from "@/types";
 import TripCard from "../components/TripCard";
-import LocationInput from "../components/LocationInput";
+import LocationInput, { LocationProvider } from "../components/LocationInput";
 import FilterSortOptions from "../components/FilterSort";
 
 export default function SearchScreen() {
@@ -21,6 +21,7 @@ export default function SearchScreen() {
 
 	const [source, setSource] = useState("");
 	const [destination, setDestination] = useState("");
+	const [via, setVia] = useState("");
 	const [searchResults, setSearchResults] = useState<Post[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [page, setPage] = useState(1);
@@ -204,27 +205,29 @@ export default function SearchScreen() {
 					},
 				]}
 			>
-				<LocationInput
-					placeholder="From"
-					value={source}
-					onChange={setSource}
-					isSource={true}
-					styles={styles}
-					colors={colors}
-					queryParam="src"
-				/>
-
-				<View style={styles.destContainer}>
+				<LocationProvider initialValues={{ source, destination, via }}>
 					<LocationInput
-						placeholder="To"
-						value={destination}
-						onChange={setDestination}
-						isSource={false}
+						placeholder="From"
+						value={source}
+						onChange={setSource}
+						isSource={true}
 						styles={styles}
 						colors={colors}
-						queryParam="dest"
+						queryParam="src"
 					/>
-				</View>
+
+					<View style={styles.destContainer}>
+						<LocationInput
+							placeholder="To"
+							value={destination}
+							onChange={setDestination}
+							isSource={false}
+							styles={styles}
+							colors={colors}
+							queryParam="dest"
+						/>
+					</View>
+				</LocationProvider>
 
 				<Pressable
 					style={[
@@ -263,37 +266,43 @@ export default function SearchScreen() {
 				]}
 			>
 				<View style={styles.compactInputsRow}>
-					<View style={styles.compactInput}>
-						<LocationInput
-							placeholder="From"
-							value={source}
-							onChange={setSource}
-							isSource={true}
-							styles={{
-								...styles,
-								inputContainer: styles.compactInputContainer,
-							}}
-							colors={colors}
-							queryParam="src"
-							containerStyle={styles.compactInputContainer}
-						/>
-					</View>
+					<LocationProvider
+						initialValues={{ source, destination, via }}
+					>
+						<View style={styles.compactInput}>
+							<LocationInput
+								placeholder="From"
+								value={source}
+								onChange={setSource}
+								isSource={true}
+								styles={{
+									...styles,
+									inputContainer:
+										styles.compactInputContainer,
+								}}
+								colors={colors}
+								queryParam="src"
+								containerStyle={styles.compactInputContainer}
+							/>
+						</View>
 
-					<View style={styles.compactInput}>
-						<LocationInput
-							placeholder="To"
-							value={destination}
-							onChange={setDestination}
-							isSource={false}
-							styles={{
-								...styles,
-								inputContainer: styles.compactInputContainer,
-							}}
-							colors={colors}
-							queryParam="dest"
-							containerStyle={styles.compactInputContainer}
-						/>
-					</View>
+						<View style={styles.compactInput}>
+							<LocationInput
+								placeholder="To"
+								value={destination}
+								onChange={setDestination}
+								isSource={false}
+								styles={{
+									...styles,
+									inputContainer:
+										styles.compactInputContainer,
+								}}
+								colors={colors}
+								queryParam="dest"
+								containerStyle={styles.compactInputContainer}
+							/>
+						</View>
+					</LocationProvider>
 
 					<Pressable
 						style={[
