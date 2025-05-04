@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
+	StyleSheet,
 	View,
 	Text,
-	StyleSheet,
 	TextInput,
 	Pressable,
 	FlatList,
@@ -15,158 +15,147 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, Send } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
 import Animated, { FadeInRight, FadeInLeft } from "react-native-reanimated";
-import API from "@/axios";
-import { db } from "@/firebaseConfig";
-import {
-	collection,
-	query,
-	orderBy,
-	onSnapshot,
-	addDoc,
-	serverTimestamp,
-	doc,
-	setDoc,
-	updateDoc,
-	getDoc,
-} from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getDatabase, ref, push, set, update, get } from "firebase/database";
+import API from "@/axios";
+
+import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
+import { useUserStatus } from "@/hooks/useUserStatus";
 
 export default function ChatScreen() {
 	const { colors } = useTheme();
 	const router = useRouter();
 	const { id } = useLocalSearchParams(); // Chat partner's user ID
-	const [messages, setMessages] = useState<any[]>([]);
+
 	const [message, setMessage] = useState("");
 	const flatListRef = useRef<FlatList<any>>(null);
 
 	const [user, setUser] = useState<any>();
 	const [oppUser, setOppUser] = useState<any>();
-
+	const [oppUserStatus, setOppUserStatus] = useState<any>(null);
 	const [conversationId, setConversationId] = useState<string | null>(null);
 
-	// const conversationId = useMemo(() => {
-	// 	if (!user?.id || !id) return null;
-	// 	return [user.id, id].sort().join("_");
-	// }, [user, id]);
+	const [messages, setMessages] = useState<any[]>([]);
 
-	let conversation = {
+	// Fetch users
+	useEffect(() => {
+		const fetchCurrentUser = async () => {
+			const userInAsyncStorage = await AsyncStorage.getItem("user");
+			const parsedUser = userInAsyncStorage
+				? JSON.parse(userInAsyncStorage)
+				: {};
+			setUser(parsedUser);
+		};
+
+		const fetchOpponentUser = async () => {
+			try {
+				const response = await API.get(`/user/${id}`);
+				setOppUser(response.data?.data);
+			} catch (error) {
+				console.error("Error fetching user details:", error);
+			}
+		};
+
+		fetchCurrentUser();
+		fetchOpponentUser();
+	}, [id]);
+
+	// Set conversationId
+	useEffect(() => {
+		if (user?.id && id) {
+			setConversationId([user.id, id].sort().join("_"));
+		}
+	}, [user?.id, id]);
+
+	// Realtime messages
+	useRealtimeMessages(conversationId, setMessages);
+
+	// Mark current user online
+	useUserStatus(user?.id);
+
+	// Watch opponent's online status
+	useUserStatus(typeof id === "string" ? id : null, setOppUserStatus);
+
+	const conversation = {
 		userId: id,
 		name: oppUser?.name ?? "Fetching...",
 		avatar: oppUser?.avatar ?? "",
 		messages,
 	};
 
-	const fetchCurrentUser = async () => {
-		const userInAsyncStorage = await AsyncStorage.getItem("user");
-		const parsedUser = userInAsyncStorage
-			? JSON.parse(userInAsyncStorage)
-			: {};
-		setUser(parsedUser);
-		console.log("Current user:", parsedUser);
-	};
-
-	const fetchOpponentUser = async () => {
-		try {
-			const response = await API.get(`/user/${id}`);
-			setOppUser(response.data?.data);
-		} catch (error) {
-			console.error("Error fetching user details:", error);
-			return null;
-		}
-	};
-
-	useEffect(() => {
-		fetchCurrentUser();
-		fetchOpponentUser();
-	}, [id]);
-
-	useEffect(() => {
-		if (!user?.id || !id) return;
-		setConversationId([user.id, id].sort().join("_"));
-	}, [user, id]);
-
-	// 🔁 Real-time message listener
-	useEffect(() => {
-		if (!id || !user?.id || !conversationId) return;
-
-		const messagesRef = collection(
-			db,
-			"conversations",
-			conversationId,
-			"messages",
-		);
-		const q = query(messagesRef, orderBy("timestamp"));
-
-		const unsubscribe = onSnapshot(q, (snapshot) => {
-			setMessages(
-				snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
-			);
-		});
-
-		return unsubscribe;
-	}, [id, conversationId, user?.id]);
-
-	// ✅ markAsRead functionality
+	// Mark conversation as read
 	useEffect(() => {
 		if (!user?.id || !id || !conversationId) return;
 
 		const markConversationAsRead = async () => {
-			const convRef = doc(db, "conversations", conversationId);
-			const snap = await getDoc(convRef);
+			const convRef = ref(
+				getDatabase(),
+				`conversations/${conversationId}`,
+			);
+			const snap = await get(convRef);
 
 			if (snap.exists()) {
-				await updateDoc(convRef, {
-					readBy: Array.from(
-						new Set([...(snap.data()?.readBy || []), user.id]),
-					),
+				const data = snap.val();
+				const updatedReadBy = Array.from(
+					new Set([...(data.readBy || []), user.id]),
+				);
+				await update(convRef, {
+					readBy: updatedReadBy,
 				});
 			}
 		};
 
 		markConversationAsRead();
-	}, [id]);
+	}, [id, user?.id, conversationId]);
 
+	// Send message
 	const handleSend = async () => {
-		console.log(
-			"Sending message with convo id:",
-			conversationId,
-			message,
-			user?.id,
-		); // Printing null
-		if (!message.trim() || !conversationId) return;
+		if (!message.trim() || !conversationId || !user?.id) return;
 
-		await setDoc(
-			doc(db, "conversations", conversationId),
-			{
-				participants: [user.id, id],
-				updatedAt: serverTimestamp(),
-			},
-			{ merge: true },
-		);
+		const db = getDatabase();
+		const convRef = ref(db, `conversations/${conversationId}`);
+		const messagesRef = ref(db, `conversations/${conversationId}/messages`);
 
-		await addDoc(
-			collection(db, "conversations", conversationId, "messages"),
-			{
-				senderId: user.id,
-				text: message.trim(),
-				timestamp: serverTimestamp(),
-			},
-		);
+		await update(convRef, {
+			participants: [user.id, id],
+			updatedAt: new Date().toISOString(),
+		});
+
+		const newMsgRef = push(messagesRef);
+		await set(newMsgRef, {
+			senderId: user.id,
+			text: message.trim(),
+			timestamp: new Date().toISOString(),
+		});
+
+		const receiverStatusSnap = await get(ref(db, `/status/${id}`));
+		const receiverStatus = receiverStatusSnap.exists()
+			? receiverStatusSnap.val()
+			: null;
+
+		const receiverIsOnChatScreen =
+			receiverStatus?.online &&
+			receiverStatus?.currentChatId === conversationId;
+
+		if (!receiverIsOnChatScreen) {
+			await API.post("/send-notification", {
+				toUserId: id,
+				title: user.name,
+				body: message.trim(),
+			});
+		}
 
 		setMessage("");
-		setTimeout(
-			() => flatListRef.current?.scrollToEnd({ animated: true }),
-			100,
-		);
+		setTimeout(() => {
+			flatListRef.current?.scrollToEnd({ animated: true });
+		}, 100);
 	};
 
-	const renderMessage = ({ item }) => {
-		const isUser = item.senderId === user.id;
+	const renderMessage = ({ item }: { item: any }) => {
+		const isUser = item.senderId === user?.id;
 		const timeAgo = formatDistanceToNow(
 			new Date(item.timestamp?.toDate?.() ?? item.timestamp),
-			{
-				addSuffix: true,
-			},
+			{ addSuffix: true },
 		);
 
 		return (
@@ -250,15 +239,33 @@ export default function ChatScreen() {
 						source={{ uri: conversation.avatar }}
 						style={styles.headerAvatar}
 					/>
-					<Text style={[styles.headerName, { color: colors.text }]}>
-						{conversation.name}
-					</Text>
+					<View style={{ flex: 1 }}>
+						<Text
+							style={[styles.headerName, { color: colors.text }]}
+						>
+							{conversation.name}
+						</Text>
+						<Text
+							style={{
+								color: colors.textSecondary,
+								fontSize: 12,
+							}}
+						>
+							{oppUserStatus?.online
+								? "Online"
+								: oppUserStatus?.lastSeen
+									? `Last seen ${formatDistanceToNow(
+											new Date(oppUserStatus.lastSeen),
+										)} ago`
+									: "Fetching status..."}
+						</Text>
+					</View>
 				</View>
 			</View>
 
 			<FlatList
 				ref={flatListRef}
-				data={messages}
+				data={messages || []}
 				renderItem={renderMessage}
 				keyExtractor={(item) => item.id.toString()}
 				contentContainerStyle={styles.messagesList}
@@ -291,7 +298,6 @@ export default function ChatScreen() {
 					onChangeText={setMessage}
 					multiline
 				/>
-
 				<Pressable
 					style={[
 						styles.sendButton,

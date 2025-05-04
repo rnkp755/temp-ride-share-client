@@ -5,6 +5,7 @@ import {
 	FlatList,
 	Pressable,
 	Image,
+	ActivityIndicator,
 } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -43,6 +44,7 @@ export default function MessagesScreen() {
 
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [userId, setUserId] = useState<string | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
 		const fetchUser = async () => {
@@ -72,11 +74,40 @@ export default function MessagesScreen() {
 					const userDoc = await API.get(`/user/${partnerId}`);
 					const userInfo = userDoc.data?.data || {};
 
+					// Get last message for display purposes
 					const lastMessage = await getLastMessage(docSnap.id);
-					const unreadCount =
-						data.readBy?.includes(userId) || !lastMessage?.timestamp
-							? 0
-							: 1;
+
+					// Get all messages to count unread ones
+					const messagesRef = collection(
+						db,
+						"conversations",
+						docSnap.id,
+						"messages",
+					);
+					const messagesQuery = query(
+						messagesRef,
+						orderBy("timestamp", "desc"),
+					);
+					const messagesSnapshot = await getDocs(messagesQuery);
+
+					// Count unread messages (only those sent by the partner and not read by you)
+					const unreadCount = messagesSnapshot.docs.reduce(
+						(count, messageDoc) => {
+							const messageData = messageDoc.data();
+							// Only count messages that:
+							// 1. Were sent by the partner (not by you)
+							// 2. Haven't been read by you
+							if (
+								messageData.senderId === partnerId &&
+								(!messageData.readBy ||
+									!messageData.readBy.includes(userId))
+							) {
+								return count + 1;
+							}
+							return count;
+						},
+						0,
+					);
 
 					return {
 						id: docSnap.id,
@@ -93,6 +124,7 @@ export default function MessagesScreen() {
 			);
 
 			setConversations(fetchedConversations);
+			setIsLoading(false);
 		});
 
 		return () => unsubscribe();
@@ -210,6 +242,18 @@ export default function MessagesScreen() {
 					contentContainerStyle={styles.listContent}
 					showsVerticalScrollIndicator={false}
 				/>
+			) : isLoading ? (
+				<View style={styles.loadingContainer}>
+					<ActivityIndicator size="small" color={colors.primary} />
+					<Text
+						style={[
+							styles.loadingText,
+							{ color: colors.textSecondary },
+						]}
+					>
+						Loading messages...
+					</Text>
+				</View>
 			) : (
 				<View style={styles.emptyContainer}>
 					<Text style={[styles.emptyText, { color: colors.text }]}>
@@ -280,7 +324,7 @@ const styles = StyleSheet.create({
 	unreadBadge: {
 		position: "absolute",
 		right: 0,
-		top: 10,
+		top: 20,
 		minWidth: 20,
 		height: 20,
 		borderRadius: 10,
@@ -307,5 +351,15 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		textAlign: "center",
 		marginTop: 8,
+	},
+	loadingContainer: {
+		paddingVertical: 20,
+		alignItems: "center",
+		flexDirection: "row",
+		justifyContent: "center",
+	},
+	loadingText: {
+		marginLeft: 8,
+		fontSize: 14,
 	},
 });

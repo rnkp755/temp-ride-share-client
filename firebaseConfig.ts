@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getDatabase } from "firebase/database";
+import { getMessaging, onMessage } from "firebase/messaging";
 import Constants from "expo-constants";
 
 const firebaseConfig = {
@@ -17,6 +18,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const rtdb = getDatabase(app);
 
 let messaging: ReturnType<typeof getMessaging> | null = null;
 if (!Constants.expoConfig?.extra?.isExpoGo) {
@@ -27,4 +29,4 @@ if (!Constants.expoConfig?.extra?.isExpoGo) {
 	}
 }
 
-export { app, db, messaging };
+export { app, db, rtdb, messaging };
