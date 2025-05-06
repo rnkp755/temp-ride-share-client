@@ -138,7 +138,7 @@ export default function ChatScreen() {
 			receiverStatus?.currentChatId === conversationId;
 
 		if (!receiverIsOnChatScreen) {
-			await API.post("/send-notification", {
+			await API.post("/notification/message", {
 				toUserId: id,
 				title: user.name,
 				body: message.trim(),

@@ -26,7 +26,7 @@ export default function Login() {
 				email: email + emailDomain,
 				password,
 			});
-
+			
 			if (response.status !== 200) {
 				throw new Error("Login failed");
 			}
@@ -74,7 +74,7 @@ export default function Login() {
 
 			router.replace("/(tabs)");
 		} catch (err) {
-			setError("Invalid email or password");
+			setError("Couldn't login. Please check your credentials.");
 		} finally {
 			setLoading(false);
 		}

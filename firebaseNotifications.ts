@@ -9,13 +9,21 @@ import { getApp } from "@react-native-firebase/app";
 import {
 	ref as dbRef,
 	onDisconnect,
-	onValue,
 	serverTimestamp,
 	set,
-	update,
 } from "firebase/database";
 import { rtdb } from "@/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import API from "@/axios";
+
+const updateFcmToken = async (token: string) => {
+	console.log("🔑 Updating FCM token to mongo");
+	const response = await API.patch("/user/update-fcm-token", {
+		fcmToken: token,
+	});
+
+	console.log("✅ FCM token updated:", response.data.message);
+};
 
 export function useFirebaseMessaging() {
 	useEffect(() => {
@@ -41,14 +49,15 @@ export function useFirebaseMessaging() {
 					await set(userStatusRef, {
 						online: true,
 						lastSeen: serverTimestamp(),
-						fcmToken: token,
 					});
+
+					// Update FCM token in the backend
+					await updateFcmToken(token);
 
 					// On disconnect, set offline
 					onDisconnect(userStatusRef).set({
 						online: false,
 						lastSeen: serverTimestamp(),
-						fcmToken: token,
 					});
 				}
 			} catch (err) {
