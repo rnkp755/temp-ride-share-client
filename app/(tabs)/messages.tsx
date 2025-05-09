@@ -12,15 +12,15 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { db } from "@/firebaseConfig";
 import {
-	collection,
+	getDatabase,
+	ref,
 	query,
-	where,
-	onSnapshot,
-	orderBy,
-	doc,
-	getDoc,
-	getDocs,
-} from "firebase/firestore";
+	orderByChild,
+	limitToLast,
+	get,
+	off,
+	onValue,
+} from "firebase/database";
 import { formatDistanceToNow } from "date-fns";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInRight } from "react-native-reanimated";
@@ -58,62 +58,60 @@ export default function MessagesScreen() {
 	useEffect(() => {
 		if (!userId) return;
 
-		const q = query(
-			collection(db, "conversations"),
-			where("participants", "array-contains", userId),
-			orderBy("updatedAt", "desc"),
-		);
+		const db = getDatabase();
+		const conversationsRef = ref(db, "conversations");
 
-		const unsubscribe = onSnapshot(q, async (snapshot) => {
+		// Order by updatedAt and filter manually
+		const q = query(conversationsRef, orderByChild("updatedAt"));
+
+		const unsubscribe = onValue(q, async (snapshot) => {
+			if (!snapshot.exists()) return;
+
+			const data = snapshot.val();
+			const entries = Object.entries(data || {});
+			const filteredAndSorted = entries
+				.filter(([_, convo]: any) =>
+					convo.participants?.includes(userId),
+				)
+				.sort((a: any, b: any) => b[1].updatedAt - a[1].updatedAt);
+
 			const fetchedConversations = await Promise.all(
-				snapshot.docs.map(async (docSnap) => {
-					const data = docSnap.data();
-					const partnerId = data.participants.find(
+				filteredAndSorted.map(async ([id, convo]: any) => {
+					const partnerId = convo.participants.find(
 						(p: string) => p !== userId,
 					);
+
 					const userDoc = await API.get(`/user/${partnerId}`);
 					const userInfo = userDoc.data?.data || {};
 
-					// Get last message for display purposes
-					const lastMessage = await getLastMessage(docSnap.id);
+					// Get last message (assumes you have getLastMessage in RTDB version already)
+					const lastMessage = await getLastMessage(id);
 
-					// Get all messages to count unread ones
-					const messagesRef = collection(
-						db,
-						"conversations",
-						docSnap.id,
-						"messages",
-					);
-					const messagesQuery = query(
-						messagesRef,
-						orderBy("timestamp", "desc"),
-					);
-					const messagesSnapshot = await getDocs(messagesQuery);
+					// Count unread messages
+					const messagesRef = ref(db, `conversations/${id}/messages`);
+					const messagesSnapshot = await get(messagesRef);
+					let unreadCount = 0;
 
-					// Count unread messages (only those sent by the partner and not read by you)
-					const unreadCount = messagesSnapshot.docs.reduce(
-						(count, messageDoc) => {
-							const messageData = messageDoc.data();
-							// Only count messages that:
-							// 1. Were sent by the partner (not by you)
-							// 2. Haven't been read by you
+					if (messagesSnapshot.exists()) {
+						messagesSnapshot.forEach((childSnapshot) => {
+							const messageData = childSnapshot.val();
 							if (
 								messageData.senderId === partnerId &&
 								(!messageData.readBy ||
 									!messageData.readBy.includes(userId))
 							) {
-								return count + 1;
+								unreadCount++;
 							}
-							return count;
-						},
-						0,
-					);
+						});
+					}
 
 					return {
-						id: docSnap.id,
+						id,
 						userId: partnerId,
 						name: userInfo.name || "Unknown",
-						avatar: userInfo.avatar || "",
+						avatar:
+							userInfo.avatar ||
+							"https://avatar.iran.liara.run/public",
 						lastMessage: lastMessage || {
 							text: "",
 							timestamp: null,
@@ -127,20 +125,25 @@ export default function MessagesScreen() {
 			setIsLoading(false);
 		});
 
-		return () => unsubscribe();
+		return () => off(q, "value", unsubscribe); // Manually remove listener
 	}, [userId]);
 
 	const getLastMessage = async (conversationId: string) => {
-		const messagesRef = collection(
-			db,
-			"conversations",
-			conversationId,
-			"messages",
+		const db = getDatabase();
+		const messagesRef = ref(db, `conversations/${conversationId}/messages`);
+		const lastMessageQuery = query(
+			messagesRef,
+			orderByChild("timestamp"),
+			limitToLast(1),
 		);
-		const q = query(messagesRef, orderBy("timestamp", "desc"));
-		const snapshot = await getDocs(q);
-		if (!snapshot.empty) {
-			return snapshot.docs[0].data();
+		const snapshot = await get(lastMessageQuery);
+
+		if (snapshot.exists()) {
+			let lastMessage = null;
+			snapshot.forEach((child) => {
+				lastMessage = child.val(); // gets the last message object
+			});
+			return lastMessage;
 		}
 		return null;
 	};
@@ -174,10 +177,21 @@ export default function MessagesScreen() {
 					onPress={() => router.push(`/messages/${item.userId}`)}
 					android_ripple={{ color: colors.ripple }}
 				>
-					<Image
-						source={{ uri: item.avatar }}
-						style={styles.avatar}
-					/>
+					{item.avatar ? (
+						<Image
+							source={{
+								uri: item.avatar,
+							}}
+							style={styles.avatar}
+						/>
+					) : (
+						<Image
+							source={{
+								uri: "https://avatar.iran.liara.run/public/",
+							}}
+							style={styles.avatar}
+						/>
+					)}
 					<View style={styles.conversationContent}>
 						<View style={styles.conversationHeader}>
 							<Text

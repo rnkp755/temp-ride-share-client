@@ -101,7 +101,10 @@ export default function TripDetailScreen() {
 					entering={FadeIn.duration(600)}
 					style={[styles.card, { backgroundColor: colors.card }]}
 				>
-					<View style={styles.userInfo}>
+					<Pressable
+						style={styles.userInfo}
+						onPress={() => router.push("/")}
+					>
 						<Image
 							source={{ uri: trip.userId.avatar }}
 							style={styles.avatar}
@@ -133,7 +136,7 @@ export default function TripDetailScreen() {
 								{new Date(trip.createdAt).toLocaleDateString()}
 							</Text>
 						</View>
-					</View>
+					</Pressable>
 
 					<View style={styles.routeContainer}>
 						<Text

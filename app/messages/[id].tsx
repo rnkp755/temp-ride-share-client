@@ -16,7 +16,15 @@ import { ChevronLeft, Send } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
 import Animated, { FadeInRight, FadeInLeft } from "react-native-reanimated";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getDatabase, ref, push, set, update, get } from "firebase/database";
+import {
+	getDatabase,
+	ref,
+	push,
+	set,
+	update,
+	get,
+	runTransaction,
+} from "firebase/database";
 import API from "@/axios";
 
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
@@ -92,17 +100,18 @@ export default function ChatScreen() {
 				getDatabase(),
 				`conversations/${conversationId}`,
 			);
-			const snap = await get(convRef);
 
-			if (snap.exists()) {
-				const data = snap.val();
-				const updatedReadBy = Array.from(
-					new Set([...(data.readBy || []), user.id]),
-				);
-				await update(convRef, {
-					readBy: updatedReadBy,
-				});
-			}
+			await runTransaction(convRef, (data) => {
+				if (data) {
+					if (!Array.isArray(data.readBy)) {
+						data.readBy = [];
+					}
+					if (!data.readBy.includes(user.id)) {
+						data.readBy.push(user.id);
+					}
+				}
+				return data;
+			});
 		};
 
 		markConversationAsRead();
@@ -138,6 +147,7 @@ export default function ChatScreen() {
 			receiverStatus?.currentChatId === conversationId;
 
 		if (!receiverIsOnChatScreen) {
+			console.log("Receiver is not on chat screen, sending notification");
 			await API.post("/notification/message", {
 				toUserId: id,
 				title: user.name,
@@ -271,7 +281,9 @@ export default function ChatScreen() {
 				contentContainerStyle={styles.messagesList}
 				showsVerticalScrollIndicator={false}
 				onLayout={() =>
-					flatListRef.current?.scrollToEnd({ animated: false })
+					setTimeout(() => {
+						flatListRef.current?.scrollToEnd({ animated: true });
+					}, 500)
 				}
 			/>
 
@@ -297,6 +309,17 @@ export default function ChatScreen() {
 					value={message}
 					onChangeText={setMessage}
 					multiline
+					onKeyPress={({ nativeEvent }) => {
+						if (nativeEvent.key === "Enter") {
+							if (message.trim()) {
+								setMessage(""); // Clear immediately
+								setTimeout(() => handleSend(), 0); // Execute send after state update
+							}
+							return false;
+						}
+					}}
+					returnKeyType="send"
+					enablesReturnKeyAutomatically={true}
 				/>
 				<Pressable
 					style={[

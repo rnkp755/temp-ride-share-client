@@ -3,19 +3,26 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Pressable, Text, Modal } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { Lock, ChevronDown, Check } from "lucide-react-native";
+import { set } from "firebase/database";
 
 interface PostVisibilityProp {
-    onChange: (value: string) => void;
-    currVisibility?: string;
+	onChange: (value: string) => void;
+	currVisibility?: string;
 }
 
-const PostVisibilitySetting: React.FC<PostVisibilityProp> = ({ onChange, currVisibility }) => {
+const PostVisibilitySetting: React.FC<PostVisibilityProp> = ({
+	onChange,
+	currVisibility,
+}) => {
 	const { colors } = useTheme();
 
-	const [visibility, setVisibility] = useState<string>(currVisibility || "all");
+	const [visibility, setVisibility] = useState<string>(
+		currVisibility || "all",
+	);
 	const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
 
-	let allowedPostsVisibilityOptions: string[] = ["All"];
+	const [allowedPostsVisibilityOptions, setAllowedPostsVisibilityOptions] =
+		useState<string[]>(["All"]);
 
 	const userPostVisibilityMap: Record<string, string> = {
 		All: "all",
@@ -38,11 +45,17 @@ const PostVisibilitySetting: React.FC<PostVisibilityProp> = ({ onChange, currVis
 			console.log("Parsed user from async storage", parsedUser);
 			setVisibility(parsedUser.settings?.postVisibility || "all");
 			if (parsedUser.role === "employee") {
-				allowedPostsVisibilityOptions.push("Employee Only");
+				setAllowedPostsVisibilityOptions((prev) => [
+					...prev,
+					"Employee Only",
+				]);
 			}
 			if (parsedUser.gender == "female") {
 				console.log("Adding female only option");
-				allowedPostsVisibilityOptions.push("Female Only");
+				setAllowedPostsVisibilityOptions((prev) => [
+					...prev,
+					"Female Only",
+				]);
 			}
 		};
 		fetchUser();

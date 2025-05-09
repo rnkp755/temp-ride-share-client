@@ -67,13 +67,13 @@ export function useFirebaseMessaging() {
 
 		setup();
 
-		const app = getApp();
-		const messaging = getMessaging(app);
+		// const app = getApp();
+		// const messaging = getMessaging(app);
 
-		const unsubscribe = onMessage(messaging, async (message) => {
-			console.log("📩 Foreground message:", message);
-		});
+		// const unsubscribe = onMessage(messaging, async (message) => {
+		// 	console.log("📩 Foreground message:", message);
+		// });
 
-		return () => unsubscribe();
+		// return () => unsubscribe();
 	}, []);
 }
