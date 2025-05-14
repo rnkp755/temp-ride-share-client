@@ -5,6 +5,7 @@ import {
 	ScrollView,
 	Pressable,
 	Image,
+	Alert,
 } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -17,14 +18,16 @@ import {
 	Mars,
 	Venus,
 	Transgender,
+	Trash2Icon,
 } from "lucide-react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
+import API from "@/axios";
 
 export default function TripDetailScreen() {
 	const { colors } = useTheme();
 	const router = useRouter();
 
-	const { id, trip: tripString } = useLocalSearchParams();
+	const { id, trip: tripString, authorizedToDelete } = useLocalSearchParams();
 	const trip = tripString
 		? JSON.parse(
 				typeof tripString === "string"
@@ -103,7 +106,9 @@ export default function TripDetailScreen() {
 				>
 					<Pressable
 						style={styles.userInfo}
-						onPress={() => router.push("/")}
+						onPress={() =>
+							router.push(`/profile/${trip.userId._id}`)
+						}
 					>
 						<Image
 							source={{ uri: trip.userId.avatar }}
@@ -365,18 +370,82 @@ export default function TripDetailScreen() {
 					},
 				]}
 			>
-				<Pressable
-					style={[
-						styles.connectButton,
-						{ backgroundColor: colors.primary },
-					]}
-					onPress={() => router.push(`/messages/${trip.userId._id}`)}
-				>
-					<MessageCircle size={20} color="#fff" />
-					<Text style={styles.connectButtonText}>
-						Connect with {trip.userId.name.split(" ")[0]}
-					</Text>
-				</Pressable>
+				{authorizedToDelete === "true" ? (
+					<Pressable
+						style={[
+							styles.connectButton,
+							{ backgroundColor: "#F45156" },
+						]}
+						onPress={() => {
+							Alert.alert(
+								"Delete Post",
+								"Are you sure you want to delete this post?",
+								[
+									{
+										text: "Cancel",
+										style: "cancel",
+									},
+									{
+										text: "Delete",
+										onPress: async () => {
+											try {
+												// Replace with your API endpoint
+												const response =
+													await API.delete(
+														`/post/delete/${id}`,
+													);
+
+												if (
+													response.data.statusCode ===
+													200
+												) {
+													// Handle successful deletion (e.g., navigation or refreshing the list)
+													alert(
+														"Trip deleted successfully",
+													);
+													router.back();
+												} else {
+													alert(
+														"Failed to delete trip",
+													);
+												}
+											} catch (error) {
+												console.error(
+													"Error deleting trip:",
+													error,
+												);
+												alert(
+													"An error occurred while deleting the trip",
+												);
+											}
+										},
+										style: "destructive",
+									},
+								],
+							);
+						}}
+					>
+						<Trash2Icon size={20} color="#FFF" />
+						<Text style={styles.connectButtonText}>
+							Click to Delete
+						</Text>
+					</Pressable>
+				) : (
+					<Pressable
+						style={[
+							styles.connectButton,
+							{ backgroundColor: colors.primary },
+						]}
+						onPress={() =>
+							router.push(`/messages/${trip.userId._id}`)
+						}
+					>
+						<MessageCircle size={20} color="#fff" />
+						<Text style={styles.connectButtonText}>
+							Connect with {trip.userId.name.split(" ")[0]}
+						</Text>
+					</Pressable>
+				)}
 			</View>
 		</View>
 	);

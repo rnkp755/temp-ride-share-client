@@ -18,10 +18,12 @@ import API from "@/axios";
 import * as SecureStore from "expo-secure-store";
 import { footerMsg } from "@/config";
 import PostVisibilitySetting from "../components/PostVisibility";
+import { min } from "date-fns";
 
 export default function ProfileScreen() {
 	const { theme, toggleTheme, colors } = useTheme();
 	const [user, setUser] = useState({
+		id: "",
 		avatar: "",
 		name: "",
 		gender: "",
@@ -77,6 +79,7 @@ export default function ProfileScreen() {
 				? JSON.parse(userInAsyncStorage)
 				: {};
 			setUser({
+				id: parsedUser.id || "",
 				avatar: parsedUser.avatar || "",
 				name: parsedUser.name || "",
 				gender: parsedUser.gender || "",
@@ -156,35 +159,43 @@ export default function ProfileScreen() {
 					<Text
 						style={[styles.email, { color: colors.textSecondary }]}
 					>
-						{
-							"\u2B24 " +
+						{"\u2B24 " +
 							user.role.charAt(0).toUpperCase() +
 							user.role.slice(1) +
 							"   " +
 							"\u2B24 " +
 							user.gender.charAt(0).toUpperCase() +
-							user.gender.slice(1)
-						}
+							user.gender.slice(1)}
 					</Text>
 				</View>
 			</View>
 
 			<View style={styles.statsContainer}>
-				<View
-					style={[styles.statCard, { backgroundColor: colors.card }]}
+				<Pressable 
+					onPress={() => router.push(`/profile/${user.id}`)}
+					style={{width: '100%'}}
 				>
-					<Text style={[styles.statValue, { color: colors.text }]}>
-						{user.tripsPosted}
-					</Text>
-					<Text
+					<View
 						style={[
-							styles.statLabel,
-							{ color: colors.textSecondary },
+							styles.statCard,
+							{ backgroundColor: colors.card },
 						]}
 					>
-						Trips Posted
-					</Text>
-				</View>
+						<Text
+							style={[styles.statValue, { color: colors.text }]}
+						>
+							{user.tripsPosted}
+						</Text>
+						<Text
+							style={[
+								styles.statLabel,
+								{ color: colors.textSecondary },
+							]}
+						>
+							Trips Posted (Click to show My Trips)
+						</Text>
+					</View>
+				</Pressable>
 
 				{/* <View
 					style={[styles.statCard, { backgroundColor: colors.card }]}

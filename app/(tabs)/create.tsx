@@ -6,7 +6,7 @@ import {
 	ScrollView,
 	Pressable,
 	TextInput,
-	Platform,
+	Alert,
 	TouchableOpacity,
 } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
@@ -94,11 +94,37 @@ export default function CreateTripScreen() {
 			if (response.data.statusCode != 201) {
 				throw new Error("Failed to create trip");
 			}
-			showAlert("success", "Post created successfully!");
-			console.log("Post created successfully:", response.data.data);
+			Alert.alert(
+				"Trip Created",
+				"Your trip has been created successfully.",
+				[
+					{
+						text: "OK",
+						onPress: () => router.push("/"),
+					},
+				],
+			);
+			// Reset form fields
+			setSource("");
+			setDestination("");
+			setVia("");
+			setDate(new Date().toISOString().split("T")[0]);
+			setTime("");
+			setTransportation("");
+			setNotes("");
+			setPostVisibility("all");
 		} catch (error) {
 			console.error(error);
-			showAlert("error", "Failed to create post. Please try again.");
+			Alert.alert(
+				"Error",
+				"An error occurred while creating the trip. Please try again.",
+				[
+					{
+						text: "OK",
+						onPress: () => router.push("/(tabs)/create"),
+					},
+				],
+			);
 		}
 	};
 
@@ -297,9 +323,7 @@ export default function CreateTripScreen() {
 					</View>
 				</Animated.View>
 
-				<Animated.View
-					entering={FadeInUp.delay(400).springify()}
-				>
+				<Animated.View entering={FadeInUp.delay(400).springify()}>
 					<PostVisibilitySetting
 						onChange={setPostVisibility}
 						currVisibility={postVisibility}

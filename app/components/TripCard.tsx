@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image, Alert } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import { Calendar, Clock, Car, Bike } from "lucide-react-native";
@@ -6,14 +6,17 @@ import Animated, { FadeInUp } from "react-native-reanimated";
 import { formatDistanceToNow } from "date-fns";
 
 import { Post } from "@/types";
+import API from "@/axios";
 
 // Changed to a proper functional component
 export default function TripCard({
 	item,
 	index = 1,
+	authorizedToDelete = false,
 }: {
 	item: Post;
 	index: number;
+	authorizedToDelete?: boolean;
 }) {
 	const { colors } = useTheme();
 	const router = useRouter();
@@ -33,7 +36,10 @@ export default function TripCard({
 						pathname: `/trip/[id]`, // Use the route pattern from your file structure
 						params: {
 							id: item._id, // Pass the ID as a separate param
-							trip: JSON.stringify(item), // Stringify complex objects
+							trip: JSON.stringify(item),
+							authorizedToDelete: authorizedToDelete
+								? "true"
+								: "false",
 						},
 					})
 				}
@@ -172,16 +178,76 @@ export default function TripCard({
 						</Text>
 					</View>
 				</View>
+				{!authorizedToDelete ? (
+					<Pressable
+						style={[
+							styles.connectButton,
+							{ backgroundColor: colors.primary },
+						]}
+						onPress={() =>
+							router.push(`/messages/${item.userId._id}`)
+						}
+					>
+						<Text style={styles.connectButtonText}>Connect</Text>
+					</Pressable>
+				) : (
+					<Pressable
+						style={[
+							styles.connectButton,
+							{ backgroundColor: "#F45156" },
+						]}
+						onPress={() => {
+							Alert.alert(
+								"Delete Post",
+								"Are you sure you want to delete this post?",
+								[
+									{
+										text: "Cancel",
+										style: "cancel",
+									},
+									{
+										text: "Delete",
+										onPress: async () => {
+											try {
+												// Replace with your API endpoint
+												const response =
+													await API.delete(
+														`/post/delete/${item._id}`,
+													);
 
-				<Pressable
-					style={[
-						styles.connectButton,
-						{ backgroundColor: colors.primary },
-					]}
-					onPress={() => router.push(`/messages/${item.userId._id}`)}
-				>
-					<Text style={styles.connectButtonText}>Connect</Text>
-				</Pressable>
+												if (
+													response.data.statusCode ===
+													200
+												) {
+													// Handle successful deletion (e.g., navigation or refreshing the list)
+													alert(
+														"Trip deleted successfully",
+													);
+													router.back();
+												} else {
+													alert(
+														"Failed to delete trip",
+													);
+												}
+											} catch (error) {
+												console.error(
+													"Error deleting trip:",
+													error,
+												);
+												alert(
+													"An error occurred while deleting the trip",
+												);
+											}
+										},
+										style: "destructive",
+									},
+								],
+							);
+						}}
+					>
+						<Text style={styles.connectButtonText}>Delete</Text>
+					</Pressable>
+				)}
 			</Pressable>
 		</Animated.View>
 	);
